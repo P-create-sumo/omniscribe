@@ -10,6 +10,7 @@ import AppLayout from './components/layout/AppLayout';
 import Home from './pages/Home';
 import CreateAgent from './pages/CreateAgent';
 import AgentDetail from './pages/AgentDetail';
+import AcademicSearch from './pages/AcademicSearch';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -40,6 +41,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/create" element={<CreateAgent />} />
         <Route path="/agent/:id" element={<AgentDetail />} />
+        <Route path="/search" element={<AcademicSearch />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Brain, Plus, Home, Sparkles } from "lucide-react";
+import { Brain, Plus, Home, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AppLayout() {
@@ -33,6 +33,16 @@ export default function AppLayout() {
                 >
                   <Home className="w-4 h-4" />
                   <span className="hidden sm:inline">Home</span>
+                </Button>
+              </Link>
+              <Link to="/search">
+                <Button
+                  variant={location.pathname === "/search" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Search className="w-4 h-4" />
+                  <span className="hidden sm:inline">Ricerca Accademica</span>
                 </Button>
               </Link>
               <Link to="/create">
