@@ -1,0 +1,44 @@
+{
+  "name": "SuperAgent",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the SuperAgent"
+    },
+    "discipline": {
+      "type": "string",
+      "description": "Area of expertise"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of this agent's expertise"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Emoji icon for the agent"
+    },
+    "color": {
+      "type": "string",
+      "description": "Theme color for the agent card"
+    },
+    "sources_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of knowledge sources uploaded"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "processing",
+        "draft"
+      ],
+      "default": "draft"
+    }
+  },
+  "required": [
+    "name",
+    "discipline"
+  ]
+}

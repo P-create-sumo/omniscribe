@@ -1,0 +1,31 @@
+{
+  "name": "ChatMessage",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "ID of the SuperAgent"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "assistant"
+      ],
+      "description": "Who sent this message"
+    },
+    "content": {
+      "type": "string",
+      "description": "Message content"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Chat session identifier"
+    }
+  },
+  "required": [
+    "agent_id",
+    "role",
+    "content"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "name": "KnowledgeSource",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "ID of the SuperAgent this source belongs to"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the source material"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "pdf",
+        "doc",
+        "txt",
+        "audio",
+        "video",
+        "text"
+      ],
+      "description": "Type of source"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "extracted_text": {
+      "type": "string",
+      "description": "Extracted/transcribed text content"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploading",
+        "processing",
+        "ready",
+        "error"
+      ],
+      "default": "uploading"
+    },
+    "file_size": {
+      "type": "string",
+      "description": "Human readable file size"
+    },
+    "original_filename": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "agent_id",
+    "title",
+    "type"
+  ]
+}
