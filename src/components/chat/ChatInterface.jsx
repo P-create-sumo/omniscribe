@@ -3,9 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Sparkles, User } from "lucide-react";
+import { Send, Loader2, Sparkles, User, Download } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
+import { jsPDF } from "jspdf";
 
 export default function ChatInterface({ agent, sources }) {
   const [messages, setMessages] = useState([]);
@@ -69,6 +70,52 @@ ISTRUZIONI:
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 16;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    // Header
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Conversazione con ${agent.name}`, margin, y);
+    y += 8;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Esperto di ${agent.discipline} · ${new Date().toLocaleDateString("it-IT")}`, margin, y);
+    y += 10;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    doc.setTextColor(0, 0, 0);
+
+    messages.forEach((msg) => {
+      const isUser = msg.role === "user";
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(isUser ? 79 : 124, isUser ? 70 : 58, isUser ? 229 : 237);
+      doc.text(isUser ? "Tu" : agent.name, margin, y);
+      y += 6;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(msg.content, maxWidth);
+      lines.forEach((line) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.text(line, margin, y);
+        y += 6;
+      });
+      y += 4;
+      if (y > 270) { doc.addPage(); y = 20; }
+    });
+
+    doc.save(`${agent.name}_conversazione.pdf`);
   };
 
   return (
@@ -147,6 +194,21 @@ ISTRUZIONI:
           </motion.div>
         )}
       </div>
+
+      {/* Export button */}
+      {messages.length > 0 && (
+        <div className="border-t border-border/50 px-4 pt-3 pb-0 flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={exportToPDF}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Scarica PDF
+          </Button>
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t border-border/50 p-4 bg-card/50 backdrop-blur-sm">

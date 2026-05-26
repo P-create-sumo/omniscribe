@@ -5,10 +5,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Upload, FileText, Mic, Type, Loader2, CheckCircle2,
-  File, X, AlertCircle
+  Upload, FileText, Type, Loader2, CheckCircle2,
+  File, HardDrive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import GoogleDrivePicker from "./GoogleDrivePicker";
 
 const FILE_TYPES = {
   "application/pdf": "pdf",
@@ -32,6 +33,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
   const [uploadQueue, setUploadQueue] = useState([]);
   const [pastedText, setPastedText] = useState("");
   const [savingText, setSavingText] = useState(false);
+  const [driveOpen, setDriveOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   const getFileType = (file) => {
@@ -141,6 +143,9 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
             <TabsTrigger value="file" className="flex-1 h-full rounded-none data-[state=active]:bg-background data-[state=active]:shadow-none gap-2">
               <Upload className="w-4 h-4" /> File
             </TabsTrigger>
+            <TabsTrigger value="drive" className="flex-1 h-full rounded-none data-[state=active]:bg-background data-[state=active]:shadow-none gap-2">
+              <HardDrive className="w-4 h-4" /> Google Drive
+            </TabsTrigger>
             <TabsTrigger value="text" className="flex-1 h-full rounded-none data-[state=active]:bg-background data-[state=active]:shadow-none gap-2">
               <Type className="w-4 h-4" /> Testo
             </TabsTrigger>
@@ -201,6 +206,31 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
                 </motion.div>
               )}
             </AnimatePresence>
+          </TabsContent>
+
+          <TabsContent value="drive" className="p-6 mt-0">
+            <div className="text-center py-6">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <HardDrive className="w-7 h-7 text-primary" />
+              </div>
+              <p className="font-medium mb-1">Importa da Google Drive</p>
+              <p className="text-sm text-muted-foreground mb-5">
+                Sfoglia e importa direttamente PDF, DOC, TXT, audio e video dal tuo Drive
+              </p>
+              <Button
+                onClick={() => setDriveOpen(true)}
+                className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0"
+              >
+                <HardDrive className="w-4 h-4" />
+                Apri Google Drive
+              </Button>
+            </div>
+            <GoogleDrivePicker
+              agentId={agentId}
+              open={driveOpen}
+              onClose={() => setDriveOpen(false)}
+              onSourceAdded={() => { setDriveOpen(false); onSourceAdded?.(); }}
+            />
           </TabsContent>
 
           <TabsContent value="text" className="p-6 mt-0">
