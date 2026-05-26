@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MessageSquare, BookOpen, Settings, ArrowLeft,
-  Trash2, Pencil, Loader2
+  Trash2, Pencil, Loader2, Plug
 } from "lucide-react";
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import KnowledgeUploader from "../components/agents/KnowledgeUploader";
 import SourcesList from "../components/agents/SourcesList";
 import ChatInterface from "../components/chat/ChatInterface";
+import IntegrationsPanel from "../components/agents/IntegrationsPanel";
 import { motion } from "framer-motion";
 
 export default function AgentDetail() {
@@ -200,10 +201,20 @@ export default function AgentDetail() {
               {sources.length}
             </Badge>
           </TabsTrigger>
+          <TabsTrigger value="integrations" className="rounded-lg gap-2 data-[state=active]:shadow-sm">
+            <Plug className="w-4 h-4" />
+            <span className="hidden sm:inline">Integrazioni</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="chat" className="flex-1 mt-4 border border-border/50 rounded-xl bg-card/50 overflow-hidden">
           <ChatInterface agent={agent} sources={sources} />
+        </TabsContent>
+
+        <TabsContent value="integrations" className="mt-4">
+          <div className="bg-card rounded-xl border border-border/60 p-6">
+            <IntegrationsPanel />
+          </div>
         </TabsContent>
 
         <TabsContent value="knowledge" className="mt-4 space-y-6">

@@ -7,6 +7,7 @@ import { Send, Loader2, Sparkles, User, Download, FileText } from "lucide-react"
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { jsPDF } from "jspdf";
+import ChatToolbar from "./ChatToolbar";
 
 export default function ChatInterface({ agent, sources }) {
   const [messages, setMessages] = useState([]);
@@ -277,6 +278,9 @@ Sii conciso ma esaustivo. Rispondi in italiano.`,
           </motion.div>
         )}
       </div>
+
+      {/* AI Tools */}
+      <ChatToolbar agent={agent} messages={messages} />
 
       {/* Export button */}
       {messages.length > 0 && (
