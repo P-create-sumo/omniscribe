@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Sparkles, User, Download } from "lucide-react";
+import { Send, Loader2, Sparkles, User, Download, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { jsPDF } from "jspdf";
@@ -70,6 +70,89 @@ ISTRUZIONI:
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const [summarizing, setSummarizing] = useState(false);
+
+  const generateSummaryPDF = async () => {
+    if (messages.length === 0) return;
+    setSummarizing(true);
+
+    const chatText = messages
+      .map(m => `${m.role === "user" ? "Domanda" : "Risposta"}: ${m.content}`)
+      .join("\n\n");
+
+    const summary = await base44.integrations.Core.InvokeLLM({
+      prompt: `Analizza questa sessione di chat con un esperto di "${agent.discipline}" e produci un riassunto strutturato dei concetti chiave.
+
+SESSIONE:
+${chatText}
+
+Produci un documento con:
+1. CONCETTI CHIAVE (lista puntata dei concetti principali emersi)
+2. PUNTI IMPORTANTI (approfondimenti e dettagli rilevanti)
+3. DA RICORDARE (3-5 takeaway fondamentali della sessione)
+
+Sii conciso ma esaustivo. Rispondi in italiano.`,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          concetti_chiave: { type: "array", items: { type: "string" } },
+          punti_importanti: { type: "array", items: { type: "string" } },
+          da_ricordare: { type: "array", items: { type: "string" } },
+        }
+      }
+    });
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 16;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 22;
+
+    // Title
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, 0, pageWidth, 14, "F");
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(`${agent.icon || "🧠"} ${agent.name} — Riassunto Sessione`, margin, 9.5);
+
+    doc.setTextColor(120, 120, 120);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(new Date().toLocaleDateString("it-IT", { weekday: "long", year: "numeric", month: "long", day: "numeric" }), margin, y);
+    y += 10;
+
+    const printSection = (title, items, color) => {
+      if (!items || items.length === 0) return;
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...color);
+      doc.text(title, margin, y);
+      y += 7;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(30, 30, 30);
+      items.forEach((item) => {
+        const lines = doc.splitTextToSize(`• ${item}`, maxWidth - 4);
+        lines.forEach((line) => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          doc.text(line, margin + 2, y);
+          y += 6;
+        });
+        y += 1;
+      });
+      y += 5;
+    };
+
+    printSection("📌 Concetti Chiave", summary.concetti_chiave, [79, 70, 229]);
+    printSection("💡 Punti Importanti", summary.punti_importanti, [16, 185, 129]);
+    printSection("⭐ Da Ricordare", summary.da_ricordare, [245, 158, 11]);
+
+    doc.save(`${agent.name}_riassunto_${new Date().toISOString().slice(0, 10)}.pdf`);
+    setSummarizing(false);
   };
 
   const exportToPDF = () => {
@@ -197,7 +280,17 @@ ISTRUZIONI:
 
       {/* Export button */}
       {messages.length > 0 && (
-        <div className="border-t border-border/50 px-4 pt-3 pb-0 flex justify-end">
+        <div className="border-t border-border/50 px-4 pt-3 pb-0 flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={generateSummaryPDF}
+            disabled={summarizing}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {summarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+            {summarizing ? "Generando..." : "Riassunto PDF"}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -205,7 +298,7 @@ ISTRUZIONI:
             className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <Download className="w-3.5 h-3.5" />
-            Scarica PDF
+            Scarica chat
           </Button>
         </div>
       )}
