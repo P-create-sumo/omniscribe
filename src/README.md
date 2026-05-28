@@ -1,4 +1,19 @@
-# 🧠 SuperAgents — AI-Powered Knowledge Experts
+# 🚀 NEXUS Intelligence Platform
+
+---
+
+> [!NOTE]
+> ## 📢 BETA TESTERS WANTED
+>
+> Stiamo aprendo la piattaforma a un gruppo selezionato di tester esterni — **Data Engineers, AI Architects, Power Users**.
+>
+> Se vuoi testare l'orchestrazione agentica sui tuoi dati:
+> - 💬 Apri una discussione nella sezione [**Discussions**](../../discussions)
+> - ✋ Candidati lasciando un feedback nella sezione [**Issues**](../../issues)
+>
+> Il tuo contributo è fondamentale per portare NEXUS alla v1.0! 🙏
+
+---
 
 > Transform your books, notes, and documents into specialized AI experts you can chat with.
 
