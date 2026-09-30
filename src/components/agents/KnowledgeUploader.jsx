@@ -106,7 +106,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
 
     // Update sources count
     const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agentId });
-    await base44.entities.SuperAgent.update(agentId, { sources_count: sources.length, status: "active" });
+    await base44.entities.Expert.update(agentId, { sources_count: sources.length, status: "active" });
 
     setUploading(false);
     setTimeout(() => setUploadQueue([]), 2000);
@@ -128,7 +128,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
     });
 
     const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agentId });
-    await base44.entities.SuperAgent.update(agentId, { sources_count: sources.length, status: "active" });
+    await base44.entities.Expert.update(agentId, { sources_count: sources.length, status: "active" });
 
     setPastedText("");
     setSavingText(false);

@@ -1,0 +1,31 @@
+{
+  "name": "Conversation",
+  "type": "object",
+  "properties": {
+    "expert_id": {
+      "type": "string",
+      "description": "ID dell'Esperto a cui appartiene la conversazione"
+    },
+    "visitor_email": {
+      "type": "string",
+      "description": "Email del visitatore (lead)"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Identificativo di sessione"
+    },
+    "is_public": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se la conversazione \u00e8 pubblica (da link condiviso)"
+    },
+    "messages_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Numero di messaggi nella conversazione"
+    }
+  },
+  "required": [
+    "expert_id"
+  ]
+}

@@ -14,7 +14,7 @@ export default function AddToAgentModal({ result, open, onClose }) {
 
   const { data: agents = [] } = useQuery({
     queryKey: ["agents"],
-    queryFn: () => base44.entities.SuperAgent.list("-created_date"),
+    queryFn: () => base44.entities.Expert.list("-created_date"),
     enabled: open,
   });
 
@@ -40,7 +40,7 @@ export default function AddToAgentModal({ result, open, onClose }) {
     });
 
     const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agent.id });
-    await base44.entities.SuperAgent.update(agent.id, {
+    await base44.entities.Expert.update(agent.id, {
       sources_count: sources.length,
       status: "active",
     });
@@ -69,7 +69,7 @@ export default function AddToAgentModal({ result, open, onClose }) {
           </div>
         ) : (
           <div className="space-y-2 mt-2">
-            <p className="text-xs text-muted-foreground mb-3">Scegli a quale SuperAgent aggiungere questo materiale:</p>
+            <p className="text-xs text-muted-foreground mb-3">Scegli a quale Expert aggiungere questo materiale:</p>
             {agents.map((agent) => (
               <div
                 key={agent.id}

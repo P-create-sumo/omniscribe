@@ -102,7 +102,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
     });
 
     const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agentId });
-    await base44.entities.SuperAgent.update(agentId, { sources_count: sources.length, status: "active" });
+    await base44.entities.Expert.update(agentId, { sources_count: sources.length, status: "active" });
 
     setImporting(prev => ({ ...prev, [file.id]: false }));
     setDone(prev => ({ ...prev, [file.id]: true }));

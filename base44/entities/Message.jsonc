@@ -1,0 +1,31 @@
+{
+  "name": "Message",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string",
+      "description": "ID della conversazione"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "assistant"
+      ],
+      "description": "Chi ha inviato il messaggio"
+    },
+    "content": {
+      "type": "string",
+      "description": "Contenuto del messaggio"
+    },
+    "source_reference": {
+      "type": "string",
+      "description": "Fonti citate nella risposta"
+    }
+  },
+  "required": [
+    "conversation_id",
+    "role",
+    "content"
+  ]
+}

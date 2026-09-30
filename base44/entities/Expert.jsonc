@@ -1,0 +1,78 @@
+{
+  "name": "Expert",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome dell'Esperto AI"
+    },
+    "discipline": {
+      "type": "string",
+      "description": "Area di competenza dell'esperto"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descrizione dell'esperto"
+    },
+    "tone_of_voice": {
+      "type": "string",
+      "description": "Tono di voce dell'esperto"
+    },
+    "key_skills": {
+      "type": "string",
+      "description": "Competenze chiave (separate da virgola)"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Emoji icona dell'esperto",
+      "default": "\ud83e\udde0"
+    },
+    "color": {
+      "type": "string",
+      "description": "Colore tema dell'esperto"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "training",
+        "active"
+      ],
+      "default": "draft",
+      "description": "Stato dell'esperto"
+    },
+    "slug": {
+      "type": "string",
+      "description": "Slug univoco per il link pubblico condivisibile"
+    },
+    "is_public": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se l'esperto \u00e8 accessibile via link pubblico"
+    },
+    "email_gate": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se richiede email per accedere (lead generation)"
+    },
+    "featured": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se l'esperto \u00e8 in vetrina sulla landing"
+    },
+    "sources_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Numero di fonti nella knowledge base"
+    },
+    "conversations_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Numero di conversazioni avviate"
+    }
+  },
+  "required": [
+    "name",
+    "discipline"
+  ]
+}

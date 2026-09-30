@@ -7,9 +7,11 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import AppLayout from './components/layout/AppLayout';
-import Home from './pages/Home';
-import CreateAgent from './pages/CreateAgent';
-import AgentDetail from './pages/AgentDetail';
+import Landing from './pages/Landing';
+import Dashboard from './pages/Dashboard';
+import CreateExpert from './pages/CreateExpert';
+import ExpertDetail from './pages/ExpertDetail';
+import PublicExpert from './pages/PublicExpert';
 import AcademicSearch from './pages/AcademicSearch';
 
 const AuthenticatedApp = () => {
@@ -38,11 +40,13 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/create" element={<CreateAgent />} />
-        <Route path="/agent/:id" element={<AgentDetail />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/create" element={<CreateExpert />} />
+        <Route path="/expert/:id" element={<ExpertDetail />} />
         <Route path="/search" element={<AcademicSearch />} />
       </Route>
+      <Route path="/e/:slug" element={<PublicExpert />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

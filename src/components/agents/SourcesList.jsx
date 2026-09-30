@@ -38,7 +38,7 @@ export default function SourcesList({ sources, onDelete }) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-        <p className="text-sm">Nessuna fonte caricata. Aggiungi documenti per dare conoscenza al tuo agente.</p>
+        <p className="text-sm">Nessuna fonte caricata. Aggiungi documenti per dare conoscenza al tuo Esperto.</p>
       </div>
     );
   }
