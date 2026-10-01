@@ -137,7 +137,11 @@ export default function Landing() {
                     <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">{expert.name}</h3>
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{expert.description || expert.discipline}</p>
                     <span className="inline-flex items-center gap-1.5 text-sm text-primary font-medium">
-                      Prova la demo <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      {expert.access_code ? (
+                        <>🔒 Riservato</>
+                      ) : (
+                        <>Prova la demo <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
+                      )}
                     </span>
                   </Card>
                 </Link>

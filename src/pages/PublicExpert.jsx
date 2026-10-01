@@ -13,6 +13,9 @@ export default function PublicExpert() {
   const [email, setEmail] = useState("");
   const [granted, setGranted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState(false);
+  const [accessGranted, setAccessGranted] = useState(false);
 
   const { data: expert, isLoading } = useQuery({
     queryKey: ["public-expert", slug],
@@ -38,6 +41,17 @@ export default function PublicExpert() {
     setSubmitting(false);
   };
 
+  const handleAccess = (e) => {
+    e.preventDefault();
+    if (code.trim() === expert.access_code) {
+      localStorage.setItem(`expert_access_${expert.id}`, code.trim());
+      setAccessGranted(true);
+      setCodeError(false);
+    } else {
+      setCodeError(true);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -57,6 +71,9 @@ export default function PublicExpert() {
     );
   }
 
+  const accessKey = `expert_access_${expert.id}`;
+  const accessVerified = !expert.access_code || localStorage.getItem(accessKey) === expert.access_code || accessGranted;
+  const needsAccessGate = !!expert.access_code && !accessVerified;
   const needsGate = expert.email_gate && !granted && !sessionStorage.getItem(`pub_email_${expert.id}`);
 
   return (
@@ -78,7 +95,28 @@ export default function PublicExpert() {
       </header>
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">
-        {needsGate ? (
+        {needsAccessGate ? (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto pt-12">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent mb-4 shadow-xl shadow-primary/25">
+                <Lock className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Esperto privato</h2>
+              <p className="text-muted-foreground text-sm">
+                Inserisci il codice d'accesso per parlare con l'esperto.
+              </p>
+            </div>
+            <form onSubmit={handleAccess} className="space-y-3">
+              <Input value={code} onChange={(e) => { setCode(e.target.value); setCodeError(false); }}
+                placeholder="Codice d'accesso" className="h-12 text-base" />
+              {codeError && <p className="text-sm text-destructive">Codice non valido, riprova.</p>}
+              <Button type="submit" disabled={!code.trim()}
+                className="w-full h-12 text-base bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0 gap-2">
+                Accedi <ArrowRight className="w-4 h-4" />
+              </Button>
+            </form>
+          </motion.div>
+        ) : needsGate ? (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto pt-12">
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent mb-4 shadow-xl shadow-primary/25">

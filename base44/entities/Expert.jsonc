@@ -55,6 +55,10 @@
       "default": false,
       "description": "Se richiede email per accedere (lead generation)"
     },
+    "access_code": {
+      "type": "string",
+      "description": "Codice d'accesso opzionale per Esperto privato (vuoto = pubblico)"
+    },
     "featured": {
       "type": "boolean",
       "default": false,
