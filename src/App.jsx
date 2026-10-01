@@ -39,15 +39,17 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<Landing />} />
+      </Route>
+      <Route path="/e/:slug" element={<PublicExpert />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Landing />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/create" element={<CreateExpert />} />
           <Route path="/expert/:id" element={<ExpertDetail />} />
           <Route path="/search" element={<AcademicSearch />} />
         </Route>
-        <Route path="/e/:slug" element={<PublicExpert />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
