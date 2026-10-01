@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MessageSquare, BookOpen, Settings, ArrowLeft, Trash2, Pencil, Loader2,
-  Copy, Check, Globe, Lock, ExternalLink,
+  Copy, Check, Globe, Lock, ExternalLink, MessageCircle, Send,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -222,6 +222,19 @@ export default function ExpertDetail() {
                 </div>
               </div>
             )}
+
+            <div className="pt-2 border-t border-border/40">
+              <h3 className="font-semibold mb-1">Canali esterni</h3>
+              <p className="text-sm text-muted-foreground mb-4">Rendi questo Esperto disponibile come bot su WhatsApp e Telegram. Dopo il collegamento potrai dialogare con i tuoi Esperti direttamente in chat, ovunque tu sia.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <a href={base44.agents.getWhatsAppConnectURL('expert_bot')} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full gap-2 justify-start"><MessageCircle className="w-4 h-4 text-emerald-500" /> Collega WhatsApp</Button>
+                </a>
+                <a href={base44.agents.getTelegramConnectURL('expert_bot')} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full gap-2 justify-start"><Send className="w-4 h-4 text-sky-500" /> Collega Telegram</Button>
+                </a>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/40">
               <div className="text-center p-4 rounded-lg bg-muted/30">
