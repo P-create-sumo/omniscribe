@@ -240,6 +240,11 @@ async function searchDOAJ(query, limit = 10, sortBy = "relevance") {
   });
 }
 
+function safeUrl(u) {
+  if (typeof u !== "string") return null;
+  return u.startsWith("http://") || u.startsWith("https://") ? u : null;
+}
+
 const searcherMap = {
   arxiv: searchArXiv,
   semantic_scholar: searchSemanticScholar,
@@ -286,6 +291,16 @@ Deno.serve(async (req) => {
 
     const allResults = Object.values(results).flat();
     const totalCount = allResults.length;
+
+    // Sanitize all URLs to http(s) only — prevents javascript:/data: scheme abuse
+    // from poisoned upstream academic-index records.
+    for (const key of Object.keys(results)) {
+      results[key] = (results[key] || []).map((r) => ({
+        ...r,
+        url: safeUrl(r.url),
+        pdf_url: safeUrl(r.pdf_url),
+      }));
+    }
 
     return Response.json({
       query,

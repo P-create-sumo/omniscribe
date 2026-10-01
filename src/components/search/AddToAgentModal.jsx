@@ -29,7 +29,7 @@ export default function AddToAgentModal({ result, open, onClose }) {
       result.url ? `\nURL: ${result.url}` : "",
     ].filter(Boolean).join("\n");
 
-    await base44.entities.KnowledgeSource.create({
+    await base44.functions.invoke("createKnowledgeSource", {
       agent_id: agent.id,
       title: result.title,
       type: "text",
@@ -37,12 +37,6 @@ export default function AddToAgentModal({ result, open, onClose }) {
       status: "ready",
       file_size: `${(new Blob([text]).size / 1024).toFixed(1)} KB`,
       original_filename: `[${result.source}] ${result.title}`,
-    });
-
-    const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agent.id });
-    await base44.entities.Expert.update(agent.id, {
-      sources_count: sources.length,
-      status: "active",
     });
 
     setAdding(null);

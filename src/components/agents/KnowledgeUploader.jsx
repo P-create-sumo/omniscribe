@@ -91,7 +91,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
         extractedText = await resp.text();
       }
 
-      await base44.entities.KnowledgeSource.create({
+      await base44.functions.invoke("createKnowledgeSource", {
         agent_id: agentId,
         title: file.name.replace(/\.[^/.]+$/, ""),
         type: fileType,
@@ -105,10 +105,6 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
       setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "done" } : item));
     }
 
-    // Update sources count
-    const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agentId });
-    await base44.entities.Expert.update(agentId, { sources_count: sources.length, status: "active" });
-
     setUploading(false);
     setTimeout(() => setUploadQueue([]), 2000);
     onSourceAdded?.();
@@ -118,7 +114,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
     if (!pastedText.trim()) return;
     setSavingText(true);
 
-    await base44.entities.KnowledgeSource.create({
+    await base44.functions.invoke("createKnowledgeSource", {
       agent_id: agentId,
       title: pastedText.slice(0, 50) + (pastedText.length > 50 ? "..." : ""),
       type: "text",
@@ -127,9 +123,6 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
       file_size: formatFileSize(new Blob([pastedText]).size),
       original_filename: "Testo incollato",
     });
-
-    const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agentId });
-    await base44.entities.Expert.update(agentId, { sources_count: sources.length, status: "active" });
 
     setPastedText("");
     setSavingText(false);

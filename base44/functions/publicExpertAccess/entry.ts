@@ -103,7 +103,10 @@ Deno.serve(async (req) => {
     let sources = [];
     if (accessGranted) {
       const raw = await base44.asServiceRole.entities.KnowledgeSource.filter({ agent_id: expert.id });
-      sources = await Promise.all(raw.map(async (s) => {
+      // Exclude sources not created by the expert owner — prevents cross-user
+      // injection of content into a publicly served knowledge base.
+      const owned = raw.filter((s) => s.created_by_id === expert.created_by_id);
+      sources = await Promise.all(owned.map(async (s) => {
         if (s.file_url && !String(s.file_url).startsWith('http')) {
           try {
             const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri: s.file_url, expires_in: 300 });

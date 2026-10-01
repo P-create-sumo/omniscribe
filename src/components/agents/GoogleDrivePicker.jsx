@@ -90,7 +90,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
       extractedText = await resp.text();
     }
 
-    await base44.entities.KnowledgeSource.create({
+    await base44.functions.invoke("createKnowledgeSource", {
       agent_id: agentId,
       title: name.replace(/\.[^/.]+$/, ""),
       type: fileType,
@@ -100,9 +100,6 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
       file_size: formatBytes(size),
       original_filename: name,
     });
-
-    const sources = await base44.entities.KnowledgeSource.filter({ agent_id: agentId });
-    await base44.entities.Expert.update(agentId, { sources_count: sources.length, status: "active" });
 
     setImporting(prev => ({ ...prev, [file.id]: false }));
     setDone(prev => ({ ...prev, [file.id]: true }));

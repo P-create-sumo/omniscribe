@@ -103,7 +103,7 @@ export default function CreateExpert() {
       const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
       setProgress({ label: `Estrazione testo: ${file.name}`, current: count, total: totalSources });
       const extractedText = await extractText(file, signed_url, fileType);
-      await base44.entities.KnowledgeSource.create({
+      await base44.functions.invoke("createKnowledgeSource", {
         agent_id: expert.id,
         title: file.name.replace(/\.[^/.]+$/, ""),
         type: fileType,
@@ -119,7 +119,7 @@ export default function CreateExpert() {
 
     if (pastedText.trim()) {
       setProgress({ label: "Salvataggio testo incollato...", current: count, total: totalSources });
-      await base44.entities.KnowledgeSource.create({
+      await base44.functions.invoke("createKnowledgeSource", {
         agent_id: expert.id,
         title: pastedText.slice(0, 50) + (pastedText.length > 50 ? "..." : ""),
         type: "text",
