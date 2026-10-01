@@ -40,9 +40,13 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
         id = conv.id;
         sessionStorage.setItem(key, id);
         if (mode === "public") {
-          await base44.entities.Expert.update(expert.id, {
-            conversations_count: (expert.conversations_count || 0) + 1,
-          });
+          try {
+            await base44.entities.Expert.update(expert.id, {
+              conversations_count: (expert.conversations_count || 0) + 1,
+            });
+          } catch (err) {
+            /* il contatore pubblico non è essenziale */
+          }
         }
       }
       if (cancelled) return;
