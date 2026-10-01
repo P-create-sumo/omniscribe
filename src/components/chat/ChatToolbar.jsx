@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,27 +9,30 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function ChatToolbar({ agent, messages }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(null);
-  const [emailForm, setEmailForm] = useState({ to: "", subject: "" });
+  const [userEmail, setUserEmail] = useState("");
   const [activePanel, setActivePanel] = useState(null);
   const [generatedImage, setGeneratedImage] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [webResult, setWebResult] = useState(null);
   const [webQuery, setWebQuery] = useState("");
 
+  useEffect(() => {
+    base44.auth.me().then(u => setUserEmail(u?.email || "")).catch(() => {});
+  }, []);
+
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === "assistant");
 
   const handleSendEmail = async () => {
-    if (!emailForm.to || !lastAssistantMsg) return;
+    if (!userEmail || !lastAssistantMsg) return;
     setLoading("email");
-    const body = `Riassunto dalla sessione con ${agent.name} (${agent.discipline}):\n\n${lastAssistantMsg.content}`;
+    const text = `Riassunto dalla sessione con ${agent.name} (${agent.discipline}):\n\n${lastAssistantMsg.content}`;
     await base44.integrations.Core.SendEmail({
-      to: emailForm.to,
-      subject: emailForm.subject || `Riassunto da ${agent.name}`,
-      body,
+      to: userEmail,
+      subject: `Riassunto da ${agent.name}`,
+      text,
     });
     setLoading(null);
     setActivePanel(null);
-    setEmailForm({ to: "", subject: "" });
   };
 
   const handleWebSearch = async () => {
@@ -137,26 +140,15 @@ export default function ChatToolbar({ agent, messages }) {
                     exit={{ opacity: 0, y: -4 }}
                     className="bg-muted/30 rounded-lg p-3 space-y-2"
                   >
-                    <input
-                      type="email"
-                      placeholder="Email destinatario"
-                      value={emailForm.to}
-                      onChange={e => setEmailForm(f => ({ ...f, to: e.target.value }))}
-                      className="w-full text-xs bg-background border border-border/60 rounded-md px-3 py-1.5 outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      type="text"
-                      placeholder={`Oggetto (default: Riassunto da ${agent.name})`}
-                      value={emailForm.subject}
-                      onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
-                      className="w-full text-xs bg-background border border-border/60 rounded-md px-3 py-1.5 outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Verrà inviata l'ultima risposta dell'agente</p>
+                    <p className="text-[10px] text-muted-foreground">Verrà inviata l'ultima risposta dell'agente alla tua email</p>
+                    <div className="text-xs bg-muted/50 border border-border/60 rounded-md px-3 py-1.5 text-muted-foreground truncate">
+                      {userEmail || "Caricamento email..."}
+                    </div>
                     <Button
                       size="sm"
                       className="h-7 text-xs"
                       onClick={handleSendEmail}
-                      disabled={loading === "email" || !emailForm.to}
+                      disabled={loading === "email" || !userEmail}
                     >
                       {loading === "email" ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
                       {loading === "email" ? "Invio..." : "Invia"}

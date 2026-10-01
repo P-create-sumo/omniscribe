@@ -1,10 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+const FILE_ID_RE = /^[A-Za-z0-9_-]{10,}$/;
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const { action, fileId, pageToken, query } = await req.json();
     const { accessToken } = await base44.asServiceRole.connectors.getConnection('googledrive');
@@ -23,8 +26,13 @@ Deno.serve(async (req) => {
       ].map(m => `mimeType='${m}'`).join(' or ');
 
       let url = `https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,size,modifiedTime,iconLink),nextPageToken&pageSize=50&orderBy=modifiedTime desc&q=(${mimeTypes}) and trashed=false`;
-      if (query) url += ` and name contains '${query.replace(/'/g, "\\'")}'`;
-      if (pageToken) url += `&pageToken=${pageToken}`;
+      if (query) {
+        const safeQuery = String(query).replace(/['\\]/g, '');
+        if (safeQuery) url += ` and name contains '${safeQuery}'`;
+      }
+      if (pageToken) {
+        url += `&pageToken=${encodeURIComponent(String(pageToken))}`;
+      }
 
       const res = await fetch(url, { headers });
       const data = await res.json();
@@ -32,19 +40,27 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'download') {
+      if (!fileId || !FILE_ID_RE.test(String(fileId))) {
+        return Response.json({ error: 'Invalid fileId' }, { status: 400 });
+      }
+      const safeFileId = String(fileId);
+
       // For Google Docs, export as plain text; for others, download directly
       let downloadUrl;
       let mimeType = 'application/octet-stream';
 
       // First, get file metadata
-      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,size`, { headers });
+      const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${safeFileId}?fields=id,name,mimeType,size`, { headers });
       const meta = await metaRes.json();
+      if (!meta || meta.error || !meta.id) {
+        return Response.json({ error: 'File not found' }, { status: 404 });
+      }
 
       if (meta.mimeType === 'application/vnd.google-apps.document') {
-        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`;
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${safeFileId}/export?mimeType=text/plain`;
         mimeType = 'text/plain';
       } else {
-        downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+        downloadUrl = `https://www.googleapis.com/drive/v3/files/${safeFileId}?alt=media`;
         mimeType = meta.mimeType;
       }
 
@@ -52,8 +68,6 @@ Deno.serve(async (req) => {
       const blob = await fileRes.blob();
 
       // Upload to Base44 storage
-      const formData = new FormData();
-      formData.append('file', blob, meta.name);
       const { file_url } = await base44.asServiceRole.integrations.Core.UploadFile({ file: blob });
 
       return Response.json({ file_url, name: meta.name, mimeType, size: blob.size });
