@@ -37,7 +37,10 @@ const USE_CASES = [
 export default function Landing() {
   const { data: featured = [] } = useQuery({
     queryKey: ["featured-experts"],
-    queryFn: () => base44.entities.Expert.filter({ featured: true }),
+    queryFn: async () => {
+      const res = await base44.functions.invoke("featuredExperts", {});
+      return res.data?.experts || [];
+    },
   });
 
   return (
@@ -137,7 +140,7 @@ export default function Landing() {
                     <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">{expert.name}</h3>
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{expert.description || expert.discipline}</p>
                     <span className="inline-flex items-center gap-1.5 text-sm text-primary font-medium">
-                      {expert.access_code ? (
+                      {expert.is_restricted ? (
                         <>🔒 Riservato</>
                       ) : (
                         <>Prova la demo <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>

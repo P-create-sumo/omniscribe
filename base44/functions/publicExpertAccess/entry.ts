@@ -1,27 +1,38 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const MAX_ATTEMPTS = 10;
+const MAX_SLUG_ATTEMPTS = 30;
 const WINDOW_MS = 10 * 60 * 1000;
 
 const attempts = new Map();
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 function registerFailure(ip, slug) {
-  const key = `${ip}|${slug}`;
   const now = Date.now();
-  let entry = attempts.get(key);
-  if (!entry || now - entry.firstAt > WINDOW_MS) {
-    entry = { count: 1, firstAt: now };
-    attempts.set(key, entry);
-  } else {
-    entry.count += 1;
+  // Two independent buckets: a best-effort per-IP+slug cap and an
+  // unspoofable per-slug global cap that holds even if X-Forwarded-For
+  // is client-controlled.
+  const buckets = [
+    { key: `ip|${ip}|${slug}`, limit: MAX_ATTEMPTS },
+    { key: `slug|${slug}`, limit: MAX_SLUG_ATTEMPTS },
+  ];
+  let allowed = true;
+  for (const b of buckets) {
+    let entry = attempts.get(b.key);
+    if (!entry || now - entry.firstAt > WINDOW_MS) {
+      entry = { count: 1, firstAt: now };
+      attempts.set(b.key, entry);
+    } else {
+      entry.count += 1;
+    }
+    if (entry.count > b.limit) allowed = false;
   }
-  if (attempts.size > 1000) {
+  if (attempts.size > 2000) {
     for (const [k, v] of attempts) {
       if (now - v.firstAt > WINDOW_MS) attempts.delete(k);
     }
   }
-  return entry.count <= MAX_ATTEMPTS;
+  return allowed;
 }
 
 function timingSafeEqual(a, b) {
@@ -45,7 +56,7 @@ Deno.serve(async (req) => {
     const { slug, access_code, email } = await req.json();
     if (!slug) return Response.json({ error: 'slug required' }, { status: 400 });
 
-    const list = await base44.asServiceRole.entities.Expert.filter({ slug });
+    const list = await base44.asServiceRole.entities.Expert.filter({ slug, is_public: true });
     const expert = list && list[0];
     if (!expert) return Response.json({ error: 'not_found' }, { status: 404 });
 
