@@ -4,9 +4,9 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import AppLayout from './components/layout/AppLayout';
+import RequireAuth from './components/RequireAuth';
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import CreateExpert from './pages/CreateExpert';
@@ -15,7 +15,7 @@ import PublicExpert from './pages/PublicExpert';
 import AcademicSearch from './pages/AcademicSearch';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings } = useAuth();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -28,23 +28,14 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      navigateToLogin();
-      return null;
-    }
-  }
-
   return (
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Landing />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/create" element={<CreateExpert />} />
-        <Route path="/expert/:id" element={<ExpertDetail />} />
-        <Route path="/search" element={<AcademicSearch />} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/create" element={<RequireAuth><CreateExpert /></RequireAuth>} />
+        <Route path="/expert/:id" element={<RequireAuth><ExpertDetail /></RequireAuth>} />
+        <Route path="/search" element={<RequireAuth><AcademicSearch /></RequireAuth>} />
       </Route>
       <Route path="/e/:slug" element={<PublicExpert />} />
       <Route path="*" element={<PageNotFound />} />
