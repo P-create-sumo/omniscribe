@@ -10,20 +10,33 @@ import { motion } from "framer-motion";
 export default function PublicExpert() {
   const slug = window.location.pathname.split("/e/")[1];
   const [email, setEmail] = useState("");
-  const [emailGranted, setEmailGranted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [code, setCode] = useState("");
-  const [codeError, setCodeError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [expert, setExpert] = useState(null);
   const [sources, setSources] = useState([]);
   const [accessRequired, setAccessRequired] = useState(false);
+  const [emailGate, setEmailGate] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
+  const [emailRequired, setEmailRequired] = useState(false);
+  const [codeError, setCodeError] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchExpert = async (accessCode) => {
-    const res = await base44.functions.invoke("publicExpertAccess", { slug, access_code: accessCode });
+  const fetchExpert = async (payload) => {
+    const res = await base44.functions.invoke("publicExpertAccess", { slug, ...payload });
     return res.data;
+  };
+
+  const applyData = (data) => {
+    setExpert(data.expert);
+    setSources(data.sources || []);
+    setAccessRequired(!!data.accessRequired);
+    setEmailGate(!!data.emailGate);
+    setAccessGranted(!!data.accessGranted);
+    setEmailRequired(!!data.emailRequired);
+    setCodeError(!!data.codeError);
+    setRateLimited(!!data.rateLimited);
   };
 
   useEffect(() => {
@@ -32,13 +45,11 @@ export default function PublicExpert() {
     (async () => {
       setLoading(true);
       try {
-        const stored = localStorage.getItem(`expert_access_${slug}`);
-        const data = await fetchExpert(stored || undefined);
+        const storedCode = sessionStorage.getItem(`expert_access_${slug}`);
+        const storedEmail = sessionStorage.getItem(`pub_email_${slug}`);
+        const data = await fetchExpert({ access_code: storedCode || undefined, email: storedEmail || undefined });
         if (cancelled) return;
-        setExpert(data.expert);
-        setSources(data.sources || []);
-        setAccessRequired(!!data.accessRequired);
-        if (data.accessGranted) setAccessGranted(true);
+        applyData(data);
       } catch {
         if (!cancelled) setExpert(null);
       } finally {
@@ -52,16 +63,13 @@ export default function PublicExpert() {
     e.preventDefault();
     if (!code.trim()) return;
     setSubmitting(true);
+    setCodeError(false);
+    setRateLimited(false);
     try {
-      const data = await fetchExpert(code.trim());
-      if (data.accessGranted) {
-        localStorage.setItem(`expert_access_${slug}`, code.trim());
-        setExpert(data.expert);
-        setSources(data.sources || []);
-        setAccessGranted(true);
-        setCodeError(false);
-      } else {
-        setCodeError(true);
+      const data = await fetchExpert({ access_code: code.trim() });
+      applyData(data);
+      if (data.accessGranted || data.emailRequired) {
+        sessionStorage.setItem(`expert_access_${slug}`, code.trim());
       }
     } catch {
       setCodeError(true);
@@ -70,11 +78,22 @@ export default function PublicExpert() {
     }
   };
 
-  const handleEmailGrant = (e) => {
+  const handleEmail = async (e) => {
     e.preventDefault();
     if (!email.trim()) return;
-    sessionStorage.setItem(`pub_email_${expert.id}`, email.trim());
-    setEmailGranted(true);
+    setSubmitting(true);
+    try {
+      const storedCode = sessionStorage.getItem(`expert_access_${slug}`);
+      const data = await fetchExpert({ access_code: storedCode || undefined, email: email.trim() });
+      applyData(data);
+      if (data.accessGranted) {
+        sessionStorage.setItem(`pub_email_${slug}`, email.trim());
+      }
+    } catch {
+      setEmailRequired(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -96,9 +115,9 @@ export default function PublicExpert() {
     );
   }
 
-  const needsAccessGate = accessRequired && !accessGranted;
-  const needsEmailGate = expert.email_gate && !emailGranted && !sessionStorage.getItem(`pub_email_${expert.id}`);
-  const visitorEmail = sessionStorage.getItem(`pub_email_${expert.id}`);
+  const needsAccessGate = accessRequired && !accessGranted && !emailRequired;
+  const needsEmailGate = emailRequired && !accessGranted;
+  const visitorEmail = sessionStorage.getItem(`pub_email_${slug}`);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -131,9 +150,10 @@ export default function PublicExpert() {
               </p>
             </div>
             <form onSubmit={handleAccess} className="space-y-3">
-              <Input value={code} onChange={(e) => { setCode(e.target.value); setCodeError(false); }}
+              <Input value={code} onChange={(e) => { setCode(e.target.value); setCodeError(false); setRateLimited(false); }}
                 placeholder="Codice d'accesso" className="h-12 text-base" />
-              {codeError && <p className="text-sm text-destructive">Codice non valido, riprova.</p>}
+              {rateLimited && <p className="text-sm text-destructive">Troppi tentativi. Riprova tra qualche minuto.</p>}
+              {codeError && !rateLimited && <p className="text-sm text-destructive">Codice non valido, riprova.</p>}
               <Button type="submit" disabled={submitting || !code.trim()}
                 className="w-full h-12 text-base bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0 gap-2">
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Accedi <ArrowRight className="w-4 h-4" /></>}
@@ -151,15 +171,15 @@ export default function PublicExpert() {
                 {expert.description || `Esperto di ${expert.discipline}. Inserisci la tua email per iniziare a chattare.`}
               </p>
             </div>
-            <form onSubmit={handleEmailGrant} className="space-y-3">
+            <form onSubmit={handleEmail} className="space-y-3">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="La tua email" className="pl-9 h-12 text-base" />
               </div>
-              <Button type="submit" disabled={!email.trim()}
+              <Button type="submit" disabled={submitting || !email.trim()}
                 className="w-full h-12 text-base bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0 gap-2">
-                <><Sparkles className="w-4 h-4" /> Inizia a chattare <ArrowRight className="w-4 h-4" /></>
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4" /> Inizia a chattare <ArrowRight className="w-4 h-4" /></>}
               </Button>
             </form>
             <p className="text-[11px] text-muted-foreground text-center mt-4">

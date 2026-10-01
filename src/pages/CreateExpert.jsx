@@ -99,14 +99,15 @@ export default function CreateExpert() {
       const file = files[i];
       const fileType = getFileType(file);
       setProgress({ label: `Caricamento: ${file.name}`, current: count, total: totalSources });
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
       setProgress({ label: `Estrazione testo: ${file.name}`, current: count, total: totalSources });
-      const extractedText = await extractText(file, file_url, fileType);
+      const extractedText = await extractText(file, signed_url, fileType);
       await base44.entities.KnowledgeSource.create({
         agent_id: expert.id,
         title: file.name.replace(/\.[^/.]+$/, ""),
         type: fileType,
-        file_url,
+        file_url: file_uri,
         extracted_text: extractedText,
         status: "ready",
         file_size: formatSize(file.size),

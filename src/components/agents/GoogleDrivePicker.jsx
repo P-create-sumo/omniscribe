@@ -69,7 +69,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
     setImporting(prev => ({ ...prev, [file.id]: true }));
 
     const res = await base44.functions.invoke("googleDriveFiles", { action: "download", fileId: file.id });
-    const { file_url, name, mimeType, size } = res.data;
+    const { file_url, file_uri, name, mimeType, size } = res.data;
 
     const fileType = FILE_TYPES[mimeType] || "txt";
 
@@ -94,7 +94,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
       agent_id: agentId,
       title: name.replace(/\.[^/.]+$/, ""),
       type: fileType,
-      file_url,
+      file_url: file_uri,
       extracted_text: extractedText,
       status: "ready",
       file_size: formatBytes(size),

@@ -67,10 +67,11 @@ Deno.serve(async (req) => {
       const fileRes = await fetch(downloadUrl, { headers });
       const blob = await fileRes.blob();
 
-      // Upload to Base44 storage
-      const { file_url } = await base44.asServiceRole.integrations.Core.UploadFile({ file: blob });
+      // Upload to private Base44 storage and hand back a short-lived signed URL
+      const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file: blob });
+      const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
 
-      return Response.json({ file_url, name: meta.name, mimeType, size: blob.size });
+      return Response.json({ file_url: signed_url, file_uri, name: meta.name, mimeType, size: blob.size });
     }
 
     return Response.json({ error: 'Invalid action' }, { status: 400 });

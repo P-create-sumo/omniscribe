@@ -66,17 +66,18 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
 
       setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "uploading" } : item));
 
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
 
       let extractedText = "";
       setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "processing" } : item));
 
       if (fileType === "audio" || fileType === "video") {
-        const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: file_url });
+        const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: signed_url });
         extractedText = transcript;
       } else if (fileType === "pdf" || fileType === "doc") {
         const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url,
+          file_url: signed_url,
           json_schema: {
             type: "object",
             properties: {
@@ -86,7 +87,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
         });
         extractedText = result?.output?.full_text || "";
       } else {
-        const resp = await fetch(file_url);
+        const resp = await fetch(signed_url);
         extractedText = await resp.text();
       }
 
@@ -94,7 +95,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
         agent_id: agentId,
         title: file.name.replace(/\.[^/.]+$/, ""),
         type: fileType,
-        file_url,
+        file_url: file_uri,
         extracted_text: extractedText,
         status: "ready",
         file_size: formatFileSize(file.size),

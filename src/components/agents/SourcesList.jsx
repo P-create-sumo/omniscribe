@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  FileText, Mic, Type, Video, File, Trash2, ExternalLink
+  FileText, Mic, Type, Video, File, Trash2, ExternalLink, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from "@/api/base44Client";
@@ -34,6 +35,25 @@ const typeColors = {
 };
 
 export default function SourcesList({ sources, onDelete }) {
+  const [downloading, setDownloading] = useState(null);
+
+  const handleDownload = async (source) => {
+    if (!source.file_url) return;
+    if (source.file_url.startsWith("http")) {
+      window.open(source.file_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setDownloading(source.id);
+    try {
+      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri: source.file_url, expires_in: 300 });
+      window.open(signed_url, "_blank", "noopener,noreferrer");
+    } catch {
+      // ignore download errors
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   if (!sources || sources.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -78,11 +98,9 @@ export default function SourcesList({ sources, onDelete }) {
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {source.file_url && (
-                  <a href={source.file_url} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(source)} disabled={downloading === source.id}>
+                    {downloading === source.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                  </Button>
                 )}
                 <Button
                   variant="ghost"
