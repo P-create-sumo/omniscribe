@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { extractText, getDocumentProxy } from 'npm:unpdf@1.8.1';
 
+const MAX_ENTITY_FIELD_SIZE = 18000; // safe limit below the ~20K entity field cap
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -21,7 +23,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Impossibile estrarre il testo dal PDF. Potrebbe essere un PDF scansito o protetto.' });
     }
 
-    return Response.json({ text });
+    // If the text fits in the entity field, return it directly
+    if (text.length <= MAX_ENTITY_FIELD_SIZE) {
+      return Response.json({ text });
+    }
+
+    // Full text exceeds the entity field limit — store it as a private file
+    // and return a truncated preview plus the file URI.
+    const blob = new Blob([text], { type: 'text/plain' });
+    const file = new File([blob], 'extracted_text.txt', { type: 'text/plain' });
+    const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file });
+
+    return Response.json({
+      text: text.slice(0, MAX_ENTITY_FIELD_SIZE),
+      extracted_text_uri: file_uri,
+      full_length: text.length,
+    });
   } catch (error) {
     return Response.json({ error: error.message || 'Errore durante l\'estrazione del testo' }, { status: 500 });
   }

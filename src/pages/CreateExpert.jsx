@@ -47,7 +47,7 @@ async function extractText(file, fileUrl, fileType) {
     if (file.size > EXTRACT_LIMIT) {
       const res = await base44.functions.invoke("extractPdfText", { signed_url: fileUrl });
       if (res?.data?.error) throw new Error(res.data.error);
-      return res?.data?.text || "";
+      return { text: res?.data?.text || "", extracted_text_uri: res?.data?.extracted_text_uri };
     }
     const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
       file_url: fileUrl,
@@ -63,7 +63,7 @@ async function extractText(file, fileUrl, fileType) {
     if (!text.trim()) {
       throw new Error("Impossibile estrarre il testo dal file. Potrebbe essere un PDF scansito o protetto.");
     }
-    return text;
+    return { text };
   }
   if (fileType === "doc") {
     const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
@@ -80,10 +80,10 @@ async function extractText(file, fileUrl, fileType) {
     if (!text.trim()) {
       throw new Error("Impossibile estrarre il testo dal file.");
     }
-    return text;
+    return { text };
   }
   const resp = await fetch(fileUrl);
-  return await resp.text();
+  return { text: await resp.text() };
 }
 
 export default function CreateExpert() {
@@ -144,13 +144,14 @@ export default function CreateExpert() {
         const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
         const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
         setProgress({ label: `Estrazione testo: ${file.name}`, current: count, total: totalSources });
-        const extractedText = await extractText(file, signed_url, fileType);
+        const { text: extractedText, extracted_text_uri } = await extractText(file, signed_url, fileType);
         await base44.functions.invoke("createKnowledgeSource", {
           agent_id: expert.id,
           title: file.name.replace(/\.[^/.]+$/, ""),
           type: fileType,
           file_url: file_uri,
           extracted_text: extractedText,
+          extracted_text_uri,
           status: "ready",
           file_size: formatSize(file.size),
           original_filename: file.name,

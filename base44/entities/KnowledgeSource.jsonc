@@ -28,7 +28,11 @@
     },
     "extracted_text": {
       "type": "string",
-      "description": "Extracted/transcribed text content"
+      "description": "Extracted/transcribed text content (truncated preview for large docs)"
+    },
+    "extracted_text_uri": {
+      "type": "string",
+      "description": "Private file URI for the full extracted text (when it exceeds the entity field limit)"
     },
     "status": {
       "type": "string",

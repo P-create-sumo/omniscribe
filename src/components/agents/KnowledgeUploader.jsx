@@ -84,6 +84,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
         let extractedText = "";
         setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "processing" } : item));
 
+        let extractedTextUri = undefined;
         if (fileType === "audio" || fileType === "video") {
           const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: signed_url });
           extractedText = transcript;
@@ -92,6 +93,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
             const res = await base44.functions.invoke("extractPdfText", { signed_url });
             if (res?.data?.error) throw new Error(res.data.error);
             extractedText = res?.data?.text || "";
+            extractedTextUri = res?.data?.extracted_text_uri;
           } else {
             const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
               file_url: signed_url,
@@ -128,6 +130,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
           type: fileType,
           file_url: file_uri,
           extracted_text: extractedText,
+          extracted_text_uri: extractedTextUri,
           status: "ready",
           file_size: formatFileSize(file.size),
           original_filename: file.name,

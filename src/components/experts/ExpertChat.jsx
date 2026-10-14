@@ -23,6 +23,24 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
   const [convId, setConvId] = useState(null);
   const [initializing, setInitializing] = useState(true);
   const scrollRef = useRef(null);
+  const textCache = useRef({});
+
+  const getSourceText = async (source) => {
+    if (!source.extracted_text_uri) return source.extracted_text || "";
+    if (textCache.current[source.id]) return textCache.current[source.id];
+    try {
+      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({
+        file_uri: source.extracted_text_uri,
+        expires_in: 300,
+      });
+      const resp = await fetch(signed_url);
+      const text = await resp.text();
+      textCache.current[source.id] = text;
+      return text;
+    } catch {
+      return source.extracted_text || "";
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -69,11 +87,22 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
-  const buildContext = () => {
-    const knowledge = (sources || [])
-      .filter((s) => s.extracted_text)
-      .map((s) => `--- ${s.title} ---\n${s.extracted_text}`)
-      .join("\n\n");
+  const buildContext = async () => {
+    const valid = (sources || []).filter((s) => s.extracted_text || s.extracted_text_uri);
+    const fetched = await Promise.all(
+      valid.map(async (s) => ({ title: s.title, text: await getSourceText(s) }))
+    );
+
+    // Cap the total knowledge text to keep the LLM prompt within bounds.
+    const MAX_CONTEXT = 100000;
+    let knowledge = fetched.map((s) => `--- ${s.title} ---\n${s.text}`).join("\n\n");
+    if (knowledge.length > MAX_CONTEXT) {
+      const perSource = Math.floor(MAX_CONTEXT / fetched.length);
+      knowledge = fetched
+        .map((s) => `--- ${s.title} ---\n${s.text.slice(0, perSource)}`)
+        .join("\n\n");
+    }
+
     const index = (sources || []).map((s, i) => `[${i + 1}] ${s.title}`).join("\n");
     return `Sei "${expert.name}", un esperto di ${expert.discipline}. ${expert.description || ""}
 ${expert.tone_of_voice ? `Tono di voce: ${expert.tone_of_voice}.` : ""}
@@ -104,7 +133,7 @@ ISTRUZIONI:
     setLoading(true);
     await base44.entities.Message.create({ conversation_id: convId, role: "user", content: text });
 
-    const context = buildContext();
+    const context = await buildContext();
     const history = [...messages, userMsg]
       .map((m) => `${m.role === "user" ? "Utente" : "Esperto"}: ${m.content}`)
       .join("\n\n");

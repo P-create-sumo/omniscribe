@@ -76,6 +76,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
     const fileType = FILE_TYPES[mimeType] || "txt";
 
     let extractedText = "";
+    let extractedTextUri = undefined;
     if (fileType === "audio" || fileType === "video") {
       extractedText = await base44.integrations.Core.TranscribeAudio({ audio_url: file_url });
     } else if (fileType === "pdf") {
@@ -83,6 +84,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
         const res = await base44.functions.invoke("extractPdfText", { signed_url: file_url });
         if (res?.data?.error) throw new Error(res.data.error);
         extractedText = res?.data?.text || "";
+        extractedTextUri = res?.data?.extracted_text_uri;
       } else {
         const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
           file_url,
@@ -115,6 +117,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
       type: fileType,
       file_url: file_uri,
       extracted_text: extractedText,
+      extracted_text_uri: extractedTextUri,
       status: "ready",
       file_size: formatBytes(size),
       original_filename: name,
