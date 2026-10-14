@@ -39,10 +39,16 @@ function slugify(s) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+const EXTRACT_LIMIT = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
 
 async function extractText(file, fileUrl, fileType) {
-  if (fileType === "pdf" || fileType === "doc") {
+  if (fileType === "pdf") {
+    if (file.size > EXTRACT_LIMIT) {
+      const res = await base44.functions.invoke("extractPdfText", { signed_url: fileUrl });
+      if (res?.data?.error) throw new Error(res.data.error);
+      return res?.data?.text || "";
+    }
     const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
       file_url: fileUrl,
       json_schema: {
@@ -56,6 +62,23 @@ async function extractText(file, fileUrl, fileType) {
     const text = result?.output?.full_text || "";
     if (!text.trim()) {
       throw new Error("Impossibile estrarre il testo dal file. Potrebbe essere un PDF scansito o protetto.");
+    }
+    return text;
+  }
+  if (fileType === "doc") {
+    const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+      file_url: fileUrl,
+      json_schema: {
+        type: "object",
+        properties: { full_text: { type: "string", description: "The complete text content of the document" } },
+      },
+    });
+    if (result?.status === "error") {
+      throw new Error(result?.details || "Estrazione del testo fallita");
+    }
+    const text = result?.output?.full_text || "";
+    if (!text.trim()) {
+      throw new Error("Impossibile estrarre il testo dal file.");
     }
     return text;
   }

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Upload, FileText, Type, Loader2, CheckCircle2,
-  File, HardDrive
+  File, HardDrive, AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import GoogleDrivePicker from "./GoogleDrivePicker";
@@ -27,6 +27,8 @@ const FILE_TYPES = {
 };
 
 const ACCEPT_STRING = ".pdf,.doc,.docx,.txt,.mp3,.wav,.ogg,.webm,.m4a,.mp4";
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+const EXTRACT_LIMIT = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
 
 export default function KnowledgeUploader({ agentId, onSourceAdded }) {
   const [uploading, setUploading] = useState(false);
@@ -34,6 +36,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
   const [pastedText, setPastedText] = useState("");
   const [savingText, setSavingText] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
+  const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
   const getFileType = (file) => {
@@ -55,8 +58,16 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
 
   const handleFiles = async (files) => {
     const fileArray = Array.from(files);
+    setError(null);
+
+    const oversized = fileArray.find(f => f.size > MAX_FILE_SIZE);
+    if (oversized) {
+      setError(`"${oversized.name}" è troppo grande (${formatFileSize(oversized.size)}). Il limite massimo è 25 MB.`);
+      return;
+    }
+
     setUploading(true);
-    
+
     const queue = fileArray.map(f => ({ name: f.name, status: "uploading", size: formatFileSize(f.size) }));
     setUploadQueue(queue);
 
@@ -64,49 +75,73 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
       const file = fileArray[i];
       const fileType = getFileType(file);
 
-      setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "uploading" } : item));
+      try {
+        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "uploading" } : item));
 
-      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
-      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
+        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+        const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
 
-      let extractedText = "";
-      setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "processing" } : item));
+        let extractedText = "";
+        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "processing" } : item));
 
-      if (fileType === "audio" || fileType === "video") {
-        const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: signed_url });
-        extractedText = transcript;
-      } else if (fileType === "pdf" || fileType === "doc") {
-        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url: signed_url,
-          json_schema: {
-            type: "object",
-            properties: {
-              full_text: { type: "string", description: "The complete text content of the document" }
-            }
+        if (fileType === "audio" || fileType === "video") {
+          const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: signed_url });
+          extractedText = transcript;
+        } else if (fileType === "pdf") {
+          if (file.size > EXTRACT_LIMIT) {
+            const res = await base44.functions.invoke("extractPdfText", { signed_url });
+            if (res?.data?.error) throw new Error(res.data.error);
+            extractedText = res?.data?.text || "";
+          } else {
+            const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+              file_url: signed_url,
+              json_schema: {
+                type: "object",
+                properties: {
+                  full_text: { type: "string", description: "The complete text content of the document" }
+                }
+              }
+            });
+            if (result?.status === "error") throw new Error(result?.details || "Estrazione fallita");
+            extractedText = result?.output?.full_text || "";
           }
+        } else if (fileType === "doc") {
+          const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
+            file_url: signed_url,
+            json_schema: {
+              type: "object",
+              properties: {
+                full_text: { type: "string", description: "The complete text content of the document" }
+              }
+            }
+          });
+          if (result?.status === "error") throw new Error(result?.details || "Estrazione fallita");
+          extractedText = result?.output?.full_text || "";
+        } else {
+          const resp = await fetch(signed_url);
+          extractedText = await resp.text();
+        }
+
+        await base44.functions.invoke("createKnowledgeSource", {
+          agent_id: agentId,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          type: fileType,
+          file_url: file_uri,
+          extracted_text: extractedText,
+          status: "ready",
+          file_size: formatFileSize(file.size),
+          original_filename: file.name,
         });
-        extractedText = result?.output?.full_text || "";
-      } else {
-        const resp = await fetch(signed_url);
-        extractedText = await resp.text();
+
+        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "done" } : item));
+      } catch (err) {
+        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "error" } : item));
+        setError(err.message || "Errore durante il caricamento del file.");
       }
-
-      await base44.functions.invoke("createKnowledgeSource", {
-        agent_id: agentId,
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        type: fileType,
-        file_url: file_uri,
-        extracted_text: extractedText,
-        status: "ready",
-        file_size: formatFileSize(file.size),
-        original_filename: file.name,
-      });
-
-      setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "done" } : item));
     }
 
     setUploading(false);
-    setTimeout(() => setUploadQueue([]), 2000);
+    setTimeout(() => setUploadQueue([]), 3000);
     onSourceAdded?.();
   };
 
@@ -169,9 +204,16 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
               </div>
               <p className="font-medium mb-1">Trascina i file qui o clicca per caricare</p>
               <p className="text-sm text-muted-foreground">
-                PDF, DOC, TXT, MP3, WAV, MP4 — carica più file contemporaneamente
+                PDF, DOC, TXT, MP3, WAV, MP4 — carica più file contemporaneamente (max 25 MB)
               </p>
             </div>
+
+            {error && (
+              <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <AnimatePresence>
               {uploadQueue.length > 0 && (
@@ -195,6 +237,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
                         </span>
                       )}
                       {item.status === "done" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                      {item.status === "error" && <AlertCircle className="w-4 h-4 text-destructive" />}
                     </div>
                   ))}
                 </motion.div>
