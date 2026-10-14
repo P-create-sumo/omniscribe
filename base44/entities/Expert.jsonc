@@ -59,6 +59,28 @@
       "type": "string",
       "description": "Codice d'accesso opzionale per Esperto privato (vuoto = pubblico)"
     },
+    "monetization_type": {
+      "type": "string",
+      "enum": [
+        "free",
+        "one_time",
+        "subscription"
+      ],
+      "default": "free",
+      "description": "Tipo di monetizzazione: gratuito, pagamento unico o abbonamento"
+    },
+    "price": {
+      "type": "number",
+      "description": "Prezzo in euro (per one_time o subscription)"
+    },
+    "stripe_product_id": {
+      "type": "string",
+      "description": "ID prodotto Stripe (creato automaticamente)"
+    },
+    "stripe_price_id": {
+      "type": "string",
+      "description": "ID prezzo Stripe (creato automaticamente)"
+    },
     "featured": {
       "type": "boolean",
       "default": false,

@@ -1,0 +1,107 @@
+{
+  "name": "Purchase",
+  "type": "object",
+  "properties": {
+    "expert_id": {
+      "type": "string",
+      "description": "ID dell'Esperto acquistato"
+    },
+    "expert_name": {
+      "type": "string",
+      "description": "Nome dell'Esperto (denormalizzato per visualizzazione)"
+    },
+    "seller_id": {
+      "type": "string",
+      "description": "ID utente del creatore dell'Esperto (per RLS e statistiche entrate)"
+    },
+    "buyer_email": {
+      "type": "string",
+      "description": "Email dell'acquirente"
+    },
+    "buyer_user_id": {
+      "type": "string",
+      "description": "ID utente acquirente (se registrato)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "one_time",
+        "subscription"
+      ],
+      "description": "Tipo di acquisto: pagamento unico o abbonamento"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Importo pagato in euro"
+    },
+    "currency": {
+      "type": "string",
+      "default": "eur",
+      "description": "Valuta"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "paid",
+        "active",
+        "cancelled",
+        "expired"
+      ],
+      "default": "pending",
+      "description": "Stato dell'acquisto"
+    },
+    "stripe_session_id": {
+      "type": "string",
+      "description": "ID sessione Stripe Checkout"
+    },
+    "stripe_subscription_id": {
+      "type": "string",
+      "description": "ID abbonamento Stripe"
+    },
+    "stripe_customer_id": {
+      "type": "string",
+      "description": "ID cliente Stripe"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Scadenza accesso (per abbonamenti)"
+    }
+  },
+  "required": [
+    "expert_id",
+    "buyer_email",
+    "type",
+    "amount"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.seller_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

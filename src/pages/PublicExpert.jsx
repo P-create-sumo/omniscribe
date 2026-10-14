@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, Lock, Sparkles, ArrowRight } from "lucide-react";
 import ExpertChat from "../components/experts/ExpertChat";
+import Paywall from "../components/experts/Paywall";
 import { motion } from "framer-motion";
 
 export default function PublicExpert() {
@@ -19,6 +20,7 @@ export default function PublicExpert() {
   const [emailGate, setEmailGate] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
   const [emailRequired, setEmailRequired] = useState(false);
+  const [paymentRequired, setPaymentRequired] = useState(false);
   const [codeError, setCodeError] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,7 @@ export default function PublicExpert() {
     setEmailGate(!!data.emailGate);
     setAccessGranted(!!data.accessGranted);
     setEmailRequired(!!data.emailRequired);
+    setPaymentRequired(!!data.paymentRequired);
     setCodeError(!!data.codeError);
     setRateLimited(!!data.rateLimited);
   };
@@ -115,8 +118,9 @@ export default function PublicExpert() {
     );
   }
 
-  const needsAccessGate = accessRequired && !accessGranted && !emailRequired;
-  const needsEmailGate = emailRequired && !accessGranted;
+  const needsAccessGate = accessRequired && !accessGranted && !emailRequired && !paymentRequired;
+  const needsEmailGate = emailRequired && !accessGranted && !paymentRequired;
+  const needsPaywall = paymentRequired && !accessGranted;
   const visitorEmail = sessionStorage.getItem(`pub_email_${slug}`);
 
   return (
@@ -186,6 +190,8 @@ export default function PublicExpert() {
               La tua email viene usata solo per darti accesso e come contatto per chi ha creato questo Esperto.
             </p>
           </motion.div>
+        ) : needsPaywall ? (
+          <Paywall expert={expert} buyerEmail={visitorEmail} />
         ) : (
           <div className="h-[calc(100vh-10rem)] border border-border/50 rounded-xl bg-card/50 overflow-hidden">
             <ExpertChat expert={expert} sources={sources} mode="public" visitorEmail={visitorEmail} />

@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
     let rateLimited = false;
     let emailRequired = false;
     let accessGranted = false;
+    let paymentRequired = false;
+    const monetizationType = expert.monetization_type || 'free';
 
     if (accessRequired) {
       const submitted = typeof access_code === 'string' ? access_code : '';
@@ -88,10 +90,32 @@ Deno.serve(async (req) => {
     }
 
     if (codeValid && !rateLimited) {
-      if (emailGate) {
+      const needsEmail = emailGate || monetizationType !== 'free';
+      if (needsEmail) {
         const submittedEmail = typeof email === 'string' ? email.trim() : '';
         if (EMAIL_RE.test(submittedEmail)) {
-          accessGranted = true;
+          if (monetizationType !== 'free') {
+            // Check for a valid purchase
+            const purchases = await base44.asServiceRole.entities.Purchase.filter({
+              expert_id: expert.id,
+              buyer_email: submittedEmail,
+            });
+            const now = new Date();
+            const hasValidPurchase = (purchases || []).some((p) => {
+              if (monetizationType === 'one_time') return p.status === 'paid';
+              if (monetizationType === 'subscription') {
+                return p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > now);
+              }
+              return false;
+            });
+            if (hasValidPurchase) {
+              accessGranted = true;
+            } else {
+              paymentRequired = true;
+            }
+          } else {
+            accessGranted = true;
+          }
         } else {
           emailRequired = true;
         }
@@ -127,6 +151,9 @@ Deno.serve(async (req) => {
       codeError,
       emailRequired,
       rateLimited,
+      paymentRequired,
+      monetizationType,
+      price: expert.price || 0,
       sources,
     });
   } catch (error) {

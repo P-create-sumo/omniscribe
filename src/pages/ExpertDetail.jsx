@@ -20,6 +20,7 @@ import {
 import KnowledgeUploader from "../components/agents/KnowledgeUploader";
 import SourcesList from "../components/agents/SourcesList";
 import ExpertChat from "../components/experts/ExpertChat";
+import MonetizationSettings from "../components/experts/MonetizationSettings";
 import { motion } from "framer-motion";
 
 export default function ExpertDetail() {
@@ -234,6 +235,10 @@ export default function ExpertDetail() {
                   <Button variant="outline" className="w-full gap-2 justify-start"><Send className="w-4 h-4 text-sky-500" /> Collega Telegram</Button>
                 </a>
               </div>
+            </div>
+
+            <div className="pt-2 border-t border-border/40">
+              <MonetizationSettings expert={expert} />
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/40">
