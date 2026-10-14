@@ -81,7 +81,7 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
       extractedText = await base44.integrations.Core.TranscribeAudio({ audio_url: file_url });
     } else if (fileType === "pdf") {
       if (size > EXTRACT_LIMIT) {
-        const res = await base44.functions.invoke("extractPdfText", { signed_url: file_url });
+        const res = await base44.functions.invoke("extractPdfText", { file_uri });
         if (res?.data?.error) throw new Error(res.data.error);
         extractedText = res?.data?.text || "";
         extractedTextUri = res?.data?.extracted_text_uri;

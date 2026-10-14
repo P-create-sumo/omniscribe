@@ -42,10 +42,10 @@ function slugify(s) {
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 const EXTRACT_LIMIT = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
 
-async function extractText(file, fileUrl, fileType) {
+async function extractText(file, fileUri, fileUrl, fileType) {
   if (fileType === "pdf") {
     if (file.size > EXTRACT_LIMIT) {
-      const res = await base44.functions.invoke("extractPdfText", { signed_url: fileUrl });
+      const res = await base44.functions.invoke("extractPdfText", { file_uri: fileUri });
       if (res?.data?.error) throw new Error(res.data.error);
       return { text: res?.data?.text || "", extracted_text_uri: res?.data?.extracted_text_uri };
     }
@@ -144,7 +144,7 @@ export default function CreateExpert() {
         const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
         const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
         setProgress({ label: `Estrazione testo: ${file.name}`, current: count, total: totalSources });
-        const { text: extractedText, extracted_text_uri } = await extractText(file, signed_url, fileType);
+        const { text: extractedText, extracted_text_uri } = await extractText(file, file_uri, signed_url, fileType);
         await base44.functions.invoke("createKnowledgeSource", {
           agent_id: expert.id,
           title: file.name.replace(/\.[^/.]+$/, ""),

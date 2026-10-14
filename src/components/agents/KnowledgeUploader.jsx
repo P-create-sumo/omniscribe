@@ -90,7 +90,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
           extractedText = transcript;
         } else if (fileType === "pdf") {
           if (file.size > EXTRACT_LIMIT) {
-            const res = await base44.functions.invoke("extractPdfText", { signed_url });
+            const res = await base44.functions.invoke("extractPdfText", { file_uri });
             if (res?.data?.error) throw new Error(res.data.error);
             extractedText = res?.data?.text || "";
             extractedTextUri = res?.data?.extracted_text_uri;

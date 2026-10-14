@@ -9,8 +9,15 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { signed_url } = await req.json();
-    if (!signed_url) return Response.json({ error: 'signed_url obbligatorio' }, { status: 400 });
+    const { file_uri } = await req.json();
+    if (!file_uri) return Response.json({ error: 'file_uri obbligatorio' }, { status: 400 });
+
+    // Generate the signed URL server-side so the platform's app-ownership
+    // validation applies — the client cannot direct us to an arbitrary URL.
+    const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
+      file_uri,
+      expires_in: 300,
+    });
 
     const resp = await fetch(signed_url, { signal: AbortSignal.timeout(120000) });
     if (!resp.ok) return Response.json({ error: 'Download del file fallito' }, { status: 502 });
@@ -32,11 +39,11 @@ Deno.serve(async (req) => {
     // and return a truncated preview plus the file URI.
     const blob = new Blob([text], { type: 'text/plain' });
     const file = new File([blob], 'extracted_text.txt', { type: 'text/plain' });
-    const { file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file });
+    const { file_uri: extracted_file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file });
 
     return Response.json({
       text: text.slice(0, MAX_ENTITY_FIELD_SIZE),
-      extracted_text_uri: file_uri,
+      extracted_text_uri: extracted_file_uri,
       full_length: text.length,
     });
   } catch (error) {
