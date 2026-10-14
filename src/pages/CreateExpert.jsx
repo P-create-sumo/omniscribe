@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sparkles, ArrowRight, Loader2, Upload, Type, FileText, CheckCircle2, Wand2 } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, Upload, Type, FileText, CheckCircle2, Wand2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const EMOJI_OPTIONS = ["🧠", "📚", "📈", "🤝", "💰", "⚖️", "💻", "🎨", "🔬", "📊", "🏛️", "🌍", "🎵", "🧬", "🔧", "🎯"];
@@ -39,6 +39,8 @@ function slugify(s) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
+
 async function extractText(file, fileUrl, fileType) {
   if (fileType === "pdf" || fileType === "doc") {
     const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
@@ -48,7 +50,14 @@ async function extractText(file, fileUrl, fileType) {
         properties: { full_text: { type: "string", description: "The complete text content of the document" } },
       },
     });
-    return result?.output?.full_text || "";
+    if (result?.status === "error") {
+      throw new Error(result?.details || "Estrazione del testo fallita");
+    }
+    const text = result?.output?.full_text || "";
+    if (!text.trim()) {
+      throw new Error("Impossibile estrarre il testo dal file. Potrebbe essere un PDF scansito o protetto.");
+    }
+    return text;
   }
   const resp = await fetch(fileUrl);
   return await resp.text();
@@ -63,6 +72,7 @@ export default function CreateExpert() {
   const [pastedText, setPastedText] = useState("");
   const [training, setTraining] = useState(false);
   const [progress, setProgress] = useState({ label: "", current: 0, total: 0 });
+  const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
   const hasContent = files.length > 0 || pastedText.trim().length > 0;
@@ -76,65 +86,78 @@ export default function CreateExpert() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.discipline || !hasContent || training) return;
+
+    const oversized = files.find((f) => f.size > MAX_FILE_SIZE);
+    if (oversized) {
+      setError(`"${oversized.name}" è troppo grande (${formatSize(oversized.size)}). Il limite massimo è 10 MB.`);
+      return;
+    }
+
     setTraining(true);
+    setError(null);
 
     const totalSources = files.length + (pastedText.trim() ? 1 : 0);
     setProgress({ label: "Creazione Esperto in corso...", current: 0, total: totalSources });
 
-    const slug = `${slugify(form.name)}-${Math.random().toString(36).slice(2, 6)}`;
-    const expert = await base44.entities.Expert.create({
-      ...form,
-      status: "training",
-      slug,
-      is_public: false,
-      email_gate: false,
-      featured: false,
-      sources_count: 0,
-      conversations_count: 0,
-    });
-
-    let count = 0;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fileType = getFileType(file);
-      setProgress({ label: `Caricamento: ${file.name}`, current: count, total: totalSources });
-      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
-      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
-      setProgress({ label: `Estrazione testo: ${file.name}`, current: count, total: totalSources });
-      const extractedText = await extractText(file, signed_url, fileType);
-      await base44.functions.invoke("createKnowledgeSource", {
-        agent_id: expert.id,
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        type: fileType,
-        file_url: file_uri,
-        extracted_text: extractedText,
-        status: "ready",
-        file_size: formatSize(file.size),
-        original_filename: file.name,
+    try {
+      const slug = `${slugify(form.name)}-${Math.random().toString(36).slice(2, 6)}`;
+      const expert = await base44.entities.Expert.create({
+        ...form,
+        status: "training",
+        slug,
+        is_public: false,
+        email_gate: false,
+        featured: false,
+        sources_count: 0,
+        conversations_count: 0,
       });
-      count++;
-      setProgress({ label: "", current: count, total: totalSources });
-    }
 
-    if (pastedText.trim()) {
-      setProgress({ label: "Salvataggio testo incollato...", current: count, total: totalSources });
-      await base44.functions.invoke("createKnowledgeSource", {
-        agent_id: expert.id,
-        title: pastedText.slice(0, 50) + (pastedText.length > 50 ? "..." : ""),
-        type: "text",
-        extracted_text: pastedText,
-        status: "ready",
-        file_size: formatSize(new Blob([pastedText]).size),
-        original_filename: "Testo incollato",
-      });
-      count++;
-      setProgress({ label: "", current: count, total: totalSources });
-    }
+      let count = 0;
 
-    setProgress({ label: "Finalizzazione Esperto...", current: totalSources, total: totalSources });
-    await base44.entities.Expert.update(expert.id, { status: "active", sources_count: totalSources });
-    navigate(`/expert/${expert.id}`);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileType = getFileType(file);
+        setProgress({ label: `Caricamento: ${file.name}`, current: count, total: totalSources });
+        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+        const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
+        setProgress({ label: `Estrazione testo: ${file.name}`, current: count, total: totalSources });
+        const extractedText = await extractText(file, signed_url, fileType);
+        await base44.functions.invoke("createKnowledgeSource", {
+          agent_id: expert.id,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          type: fileType,
+          file_url: file_uri,
+          extracted_text: extractedText,
+          status: "ready",
+          file_size: formatSize(file.size),
+          original_filename: file.name,
+        });
+        count++;
+        setProgress({ label: "", current: count, total: totalSources });
+      }
+
+      if (pastedText.trim()) {
+        setProgress({ label: "Salvataggio testo incollato...", current: count, total: totalSources });
+        await base44.functions.invoke("createKnowledgeSource", {
+          agent_id: expert.id,
+          title: pastedText.slice(0, 50) + (pastedText.length > 50 ? "..." : ""),
+          type: "text",
+          extracted_text: pastedText,
+          status: "ready",
+          file_size: formatSize(new Blob([pastedText]).size),
+          original_filename: "Testo incollato",
+        });
+        count++;
+        setProgress({ label: "", current: count, total: totalSources });
+      }
+
+      setProgress({ label: "Finalizzazione Esperto...", current: totalSources, total: totalSources });
+      await base44.entities.Expert.update(expert.id, { status: "active", sources_count: totalSources });
+      navigate(`/expert/${expert.id}`);
+    } catch (err) {
+      setError(err.message || "Si è verificato un errore durante la creazione dell'Esperto.");
+      setTraining(false);
+    }
   };
 
   if (training) {
@@ -272,6 +295,13 @@ export default function CreateExpert() {
                 placeholder="Incolla qui il testo del tuo libro, manuale o metodo..."
                 className="min-h-[120px] text-base resize-none" />
             </div>
+
+            {error && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <Button type="submit" disabled={!form.name || !form.discipline || !hasContent || training}
               className="w-full h-12 text-base bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0 shadow-lg shadow-primary/25 gap-2">
