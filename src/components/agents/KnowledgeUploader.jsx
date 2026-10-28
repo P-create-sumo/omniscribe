@@ -161,25 +161,24 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
           </TabsList>
 
           <TabsContent value="file" className="p-6 mt-0">
-            <label
-              htmlFor="knowledge-file-input"
-              className="block border-2 border-dashed border-border/60 rounded-xl p-8 text-center hover:border-primary/40 transition-colors cursor-pointer group"
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleFiles(e.dataTransfer.files);
               }}
+              className="border-2 border-dashed border-border/60 rounded-xl p-8 text-center hover:border-primary/40 transition-colors cursor-pointer group"
             >
-              <input
-                id="knowledge-file-input"
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPT_STRING}
-                multiple
-                className="sr-only"
-                onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
-              />
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Upload className="w-7 h-7 text-primary" />
               </div>
@@ -187,7 +186,16 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
               <p className="text-sm text-muted-foreground">
                 PDF, DOC, TXT, MP3, WAV, MP4 — carica più file contemporaneamente (max 25 MB)
               </p>
-            </label>
+            </div>
+            {/* Kept outside the click target so the picker cannot re-open and drop the selection. */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_STRING}
+              multiple
+              className="hidden"
+              onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+            />
 
             {error && (
               <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">

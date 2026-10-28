@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles, ArrowRight, Loader2, Upload, Type, FileText, CheckCircle2, Wand2, AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 const EMOJI_OPTIONS = ["🧠", "📚", "📈", "🤝", "💰", "⚖️", "💻", "🎨", "🔬", "📊", "🏛️", "🌍", "🎵", "🧬", "🔧", "🎯"];
 
@@ -256,25 +256,33 @@ export default function CreateExpert() {
             {/* Upload */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Knowledge base *</Label>
-              <label
-                htmlFor="expert-file-input"
-                className="block border-2 border-dashed border-border/60 rounded-xl p-6 text-center hover:border-primary/40 transition-colors cursor-pointer group"
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
                 onDragOver={(e) => { e.preventDefault(); }}
                 onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+                className="border-2 border-dashed border-border/60 rounded-xl p-6 text-center hover:border-primary/40 transition-colors cursor-pointer group"
               >
-                <input id="expert-file-input" ref={fileInputRef} type="file" accept={ACCEPT_STRING} multiple
-                  className="sr-only"
-                  onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                   <Upload className="w-6 h-6 text-primary" />
                 </div>
                 <p className="font-medium mb-1 text-sm">Trascina file o clicca per caricare</p>
                 <p className="text-xs text-muted-foreground">PDF, EPUB, DOC, TXT</p>
-              </label>
+              </div>
+              {/* The input stays outside the clickable area: a label wrapping its
+                  own input re-activates the picker and the selection is dropped. */}
+              <input ref={fileInputRef} type="file" accept={ACCEPT_STRING} multiple className="hidden"
+                onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
 
-              <AnimatePresence>
-                {files.length > 0 && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-2">
+              {files.length > 0 && (
+                  <div className="space-y-2">
                     {files.map((file, idx) => (
                       <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                         <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -285,9 +293,8 @@ export default function CreateExpert() {
                         <button type="button" onClick={() => removeFile(idx)} className="text-xs text-destructive hover:underline">Rimuovi</button>
                       </div>
                     ))}
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <div className="flex-1 border-t border-border/40" />
@@ -311,6 +318,14 @@ export default function CreateExpert() {
               className="w-full h-12 text-base bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0 shadow-lg shadow-primary/25 gap-2">
               {training ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Type className="w-5 h-5" /> Crea Esperto <ArrowRight className="w-5 h-5" /></>}
             </Button>
+
+            {(!form.name || !form.discipline || !hasContent) && (
+              <p className="text-xs text-muted-foreground text-center">
+                {!form.name || !form.discipline
+                  ? "Compila nome e disciplina dell'Esperto."
+                  : "Aggiungi almeno un file o incolla del testo per attivare la creazione."}
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>
