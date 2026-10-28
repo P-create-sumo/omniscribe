@@ -122,6 +122,7 @@ export default function PublicExpert() {
   const needsEmailGate = emailRequired && !accessGranted && !paymentRequired;
   const needsPaywall = paymentRequired && !accessGranted;
   const visitorEmail = sessionStorage.getItem(`pub_email_${slug}`);
+  const visitorCode = sessionStorage.getItem(`expert_access_${slug}`);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -194,7 +195,7 @@ export default function PublicExpert() {
           <Paywall expert={expert} buyerEmail={visitorEmail} />
         ) : (
           <div className="h-[calc(100vh-10rem)] border border-border/50 rounded-xl bg-card/50 overflow-hidden">
-            <ExpertChat expert={expert} sources={sources} mode="public" visitorEmail={visitorEmail} />
+            <ExpertChat expert={expert} sources={sources} mode="public" visitorEmail={visitorEmail} accessCode={visitorCode} />
           </div>
         )}
       </main>

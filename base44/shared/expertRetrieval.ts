@@ -79,6 +79,47 @@ export function canUseExpertContent(user, expert) {
   return type === 'free';
 }
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+function timingSafeEqual(a, b) {
+  const enc = new TextEncoder();
+  const ab = enc.encode(String(a));
+  const bb = enc.encode(String(b));
+  if (ab.length !== bb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
+  return diff === 0;
+}
+
+// Who may consume an Expert's AI answers: decided server-side only. Owner,
+// admin and public free experts; for gated or paid public experts the visitor's
+// code must match and a paid expert needs a verified purchase for that email.
+export async function canChatWithExpert(base44, user, expert, options = {}) {
+  if (canUseExpertContent(user, expert)) return true;
+  if (!expert.is_public) return false;
+
+  const code = typeof options.access_code === 'string' ? options.access_code : '';
+  if (expert.access_code && !timingSafeEqual(code, expert.access_code)) return false;
+
+  const type = expert.monetization_type || 'free';
+  const needsEmail = !!expert.email_gate || type !== 'free';
+  if (!needsEmail) return true;
+
+  const email = typeof options.email === 'string' ? options.email.trim() : '';
+  if (!EMAIL_RE.test(email)) return false;
+  if (type === 'free') return true;
+
+  const { items } = await base44.asServiceRole.entities.Purchase.filter({
+    expert_id: expert.id,
+    buyer_email: email,
+  });
+  const now = new Date();
+  return (items || []).some((p) => {
+    if (type === 'one_time') return p.status === 'paid';
+    return p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > now);
+  });
+}
+
 export async function selectMatches(base44, sources, question) {
   const questionTokens = tokenize(question);
   const phrase = fold(question).trim();

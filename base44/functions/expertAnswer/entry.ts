@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
-import { canUseExpertContent, fetchExpertSources, selectMatches } from '../../shared/expertRetrieval.ts';
+import { canChatWithExpert, fetchExpertSources, selectMatches } from '../../shared/expertRetrieval.ts';
 
 const MAX_CONTEXT_CHARS = 60000;
 const MAX_HISTORY_CHARS = 6000;
@@ -29,7 +29,6 @@ export default async function (req) {
     const expert_id = body.expert_id;
     const question = String(body.question || '').trim().slice(0, MAX_QUESTION_CHARS);
     const history = String(body.history || '').slice(-MAX_HISTORY_CHARS);
-    const clientKnowledge = typeof body.context === 'string' ? body.context.slice(0, MAX_CONTEXT_CHARS) : '';
 
     if (!expert_id || !question) {
       return Response.json({ error: 'expert_id e question obbligatori' }, { status: 400 });
@@ -39,22 +38,21 @@ export default async function (req) {
       .catch((e) => (e.status === 404 ? null : Promise.reject(e)));
     if (!expert) return Response.json({ error: 'Esperto non trovato' }, { status: 404 });
 
-    const allowed = canUseExpertContent(user, expert);
-    if (!allowed && !clientKnowledge) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    // Access is decided server-side, and the knowledge used for the answer always
+    // comes from the expert's own sources — never from client-supplied text, so
+    // the endpoint cannot be used as a generic LLM proxy on the app's credits.
+    const allowed = await canChatWithExpert(base44, user, expert, {
+      email: body.email,
+      access_code: body.access_code,
+    });
+    if (!allowed) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-    let knowledge = clientKnowledge;
-    let index = '';
-
-    if (!knowledge) {
-      const sources = await fetchExpertSources(base44, expert);
-      const { matches } = await selectMatches(base44, sources, question);
-      index = sources.map((s, i) => `[${i + 1}] ${s.title || 'Documento'}`).join('\n');
-      knowledge = matches
-        .map((m) => `--- ${m.source_title} ---\n${m.excerpt}`)
-        .join('\n\n');
-    }
+    const sources = await fetchExpertSources(base44, expert);
+    const { matches } = await selectMatches(base44, sources, question);
+    const index = sources.map((s, i) => `[${i + 1}] ${s.title || 'Documento'}`).join('\n');
+    const knowledge = matches
+      .map((m) => `--- ${m.source_title} ---\n${m.excerpt}`)
+      .join('\n\n');
 
     const prompt = `Sei "${expert.name}", un esperto di ${expert.discipline}. ${expert.description || ''}
 ${expert.tone_of_voice ? `Tono di voce: ${expert.tone_of_voice}.` : ''}

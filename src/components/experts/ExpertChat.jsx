@@ -16,31 +16,13 @@ function parseCitations(text) {
   return { content, citations };
 }
 
-export default function ExpertChat({ expert, sources = [], mode = "owner", visitorEmail }) {
+export default function ExpertChat({ expert, sources = [], mode = "owner", visitorEmail, accessCode }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [convId, setConvId] = useState(null);
   const [initializing, setInitializing] = useState(true);
   const scrollRef = useRef(null);
-  const textCache = useRef({});
-
-  const getSourceText = async (source) => {
-    if (!source.extracted_text_uri) return source.extracted_text || "";
-    if (textCache.current[source.id]) return textCache.current[source.id];
-    try {
-      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({
-        file_uri: source.extracted_text_uri,
-        expires_in: 300,
-      });
-      const resp = await fetch(signed_url);
-      const text = await resp.text();
-      textCache.current[source.id] = text;
-      return text;
-    } catch {
-      return source.extracted_text || "";
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -87,25 +69,6 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
-  const buildKnowledge = async () => {
-    const valid = (sources || []).filter((s) => s.extracted_text || s.extracted_text_uri);
-    const fetched = await Promise.all(
-      valid.map(async (s) => ({ title: s.title, text: await getSourceText(s) }))
-    );
-
-    // Cap the total knowledge text to keep the LLM prompt within bounds.
-    const MAX_CONTEXT = 100000;
-    let knowledge = fetched.map((s) => `--- ${s.title} ---\n${s.text}`).join("\n\n");
-    if (knowledge.length > MAX_CONTEXT) {
-      const perSource = Math.floor(MAX_CONTEXT / fetched.length);
-      knowledge = fetched
-        .map((s) => `--- ${s.title} ---\n${s.text.slice(0, perSource)}`)
-        .join("\n\n");
-    }
-
-    return knowledge;
-  };
-
   const handleSend = async () => {
     if (!input.trim() || loading || !convId) return;
     const text = input.trim();
@@ -115,7 +78,6 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
     setLoading(true);
     await base44.entities.Message.create({ conversation_id: convId, role: "user", content: text });
 
-    const knowledge = await buildKnowledge();
     const history = [...messages, userMsg]
       .map((m) => `${m.role === "user" ? "Utente" : "Esperto"}: ${m.content}`)
       .join("\n\n");
@@ -126,7 +88,8 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
         expert_id: expert.id,
         question: text,
         history,
-        context: knowledge,
+        email: visitorEmail || undefined,
+        access_code: accessCode || undefined,
       });
       response = res?.data?.answer || "";
     } catch {

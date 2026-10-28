@@ -3,6 +3,10 @@ import { extractText, getDocumentProxy } from 'npm:unpdf@1.8.1';
 
 const MAX_ENTITY_FIELD_SIZE = 18000;
 
+// Only a storage path is accepted (never a caller-supplied URL), so the server
+// can never be pointed at an arbitrary host (SSRF + response exfiltration).
+const FILE_URI_RE = /^[A-Za-z0-9][A-Za-z0-9/_.-]{3,300}$/;
+
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -23,20 +27,24 @@ export default async function (req) {
 
     await base44.entities.KnowledgeSource.update(source_id, { status: 'processing' });
 
-    let downloadUrl = source.file_url;
-    if (!downloadUrl.startsWith('http')) {
-      const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
-        file_uri: source.file_url,
-        expires_in: 600,
-      });
-      downloadUrl = signed_url;
+    const file_uri = String(source.file_url || '');
+    if (!FILE_URI_RE.test(file_uri) || file_uri.includes('://')) {
+      await base44.entities.KnowledgeSource.update(source_id, { status: 'error' });
+      return Response.json({ error: 'File non valido: ricarica il documento originale.' }, { status: 400 });
     }
+
+    // Storage path -> signed URL generated server-side (app-ownership is validated
+    // by the platform), never a URL taken from the record.
+    const { signed_url: downloadUrl } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
+      file_uri,
+      expires_in: 600,
+    });
 
     let text = '';
     const type = source.type;
 
     if (type === 'pdf') {
-      const resp = await fetch(downloadUrl, { signal: AbortSignal.timeout(120000) });
+      const resp = await fetch(downloadUrl, { signal: AbortSignal.timeout(120000), redirect: 'manual' });
       if (!resp.ok) throw new Error('Download del file fallito');
       const pdf = await getDocumentProxy(new Uint8Array(await resp.arrayBuffer()));
       const extracted = await extractText(pdf, { mergePages: true });
@@ -54,7 +62,8 @@ export default async function (req) {
       if (result?.status === 'error') throw new Error(result?.details || 'Estrazione fallita');
       text = result?.output?.full_text || '';
     } else {
-      const resp = await fetch(downloadUrl, { signal: AbortSignal.timeout(60000) });
+      const resp = await fetch(downloadUrl, { signal: AbortSignal.timeout(60000), redirect: 'manual' });
+      if (!resp.ok) throw new Error('Download del file fallito');
       text = await resp.text();
     }
 
