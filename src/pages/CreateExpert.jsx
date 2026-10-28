@@ -40,7 +40,6 @@ function slugify(s) {
 }
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
-const EXTRACT_LIMIT = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
 
 async function extractText(file, fileUri, fileUrl, fileType) {
   if (fileType === "pdf") {
@@ -100,7 +99,7 @@ export default function CreateExpert() {
 
     const oversized = files.find((f) => f.size > MAX_FILE_SIZE);
     if (oversized) {
-      setError(`"${oversized.name}" è troppo grande (${formatSize(oversized.size)}). Il limite massimo è 10 MB.`);
+      setError(`"${oversized.name}" è troppo grande (${formatSize(oversized.size)}). Il limite massimo è 25 MB.`);
       return;
     }
 

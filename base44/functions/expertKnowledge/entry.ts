@@ -93,7 +93,7 @@ export default async function (req) {
     let uriFetched = 0;
     for (const source of sources) {
       let text = source.extracted_text || '';
-      if (text.length < 400 && source.extracted_text_uri && uriFetched < MAX_URI_SOURCES) {
+      if (source.extracted_text_uri && uriFetched < MAX_URI_SOURCES) {
         uriFetched++;
         text = await resolveSourceText(base44, source);
       }

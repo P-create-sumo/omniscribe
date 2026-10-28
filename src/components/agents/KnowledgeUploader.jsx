@@ -28,7 +28,6 @@ const FILE_TYPES = {
 
 const ACCEPT_STRING = ".pdf,.doc,.docx,.txt,.mp3,.wav,.ogg,.webm,.m4a,.mp4";
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
-const EXTRACT_LIMIT = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
 
 export default function KnowledgeUploader({ agentId, onSourceAdded }) {
   const [uploading, setUploading] = useState(false);
