@@ -1,9 +1,8 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Brain, Plus, Home, LayoutDashboard, CircleDollarSign, Plug, Database } from "lucide-react";
+import { Brain, Plus, Home, LayoutDashboard, CircleDollarSign, Database } from "lucide-react";
 
 const EXTRA_LINKS = [
   { to: "/monetization", label: "Monetizzazione", icon: CircleDollarSign },
-  { to: "/integrations", label: "Integrazioni", icon: Plug },
   { to: "/knowledge-sources", label: "Fonti", icon: Database },
 ];
 import { Button } from "@/components/ui/button";
