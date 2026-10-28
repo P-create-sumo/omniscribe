@@ -184,9 +184,9 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
           </TabsList>
 
           <TabsContent value="file" className="p-6 mt-0">
-            <div
-              className="border-2 border-dashed border-border/60 rounded-xl p-8 text-center hover:border-primary/40 transition-colors cursor-pointer group"
-              onClick={() => fileInputRef.current?.click()}
+            <label
+              htmlFor="knowledge-file-input"
+              className="block border-2 border-dashed border-border/60 rounded-xl p-8 text-center hover:border-primary/40 transition-colors cursor-pointer group"
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
               onDrop={(e) => {
                 e.preventDefault();
@@ -195,11 +195,12 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
               }}
             >
               <input
+                id="knowledge-file-input"
                 ref={fileInputRef}
                 type="file"
                 accept={ACCEPT_STRING}
                 multiple
-                className="hidden"
+                className="sr-only"
                 onChange={(e) => handleFiles(e.target.files)}
               />
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
@@ -209,7 +210,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
               <p className="text-sm text-muted-foreground">
                 PDF, DOC, TXT, MP3, WAV, MP4 — carica più file contemporaneamente (max 25 MB)
               </p>
-            </div>
+            </label>
 
             {error && (
               <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">

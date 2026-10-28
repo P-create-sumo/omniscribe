@@ -277,20 +277,21 @@ export default function CreateExpert() {
             {/* Upload */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Knowledge base *</Label>
-              <div
-                className="border-2 border-dashed border-border/60 rounded-xl p-6 text-center hover:border-primary/40 transition-colors cursor-pointer group"
-                onClick={() => fileInputRef.current?.click()}
+              <label
+                htmlFor="expert-file-input"
+                className="block border-2 border-dashed border-border/60 rounded-xl p-6 text-center hover:border-primary/40 transition-colors cursor-pointer group"
                 onDragOver={(e) => { e.preventDefault(); }}
                 onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
               >
-                <input ref={fileInputRef} type="file" accept={ACCEPT_STRING} multiple className="hidden"
+                <input id="expert-file-input" ref={fileInputRef} type="file" accept={ACCEPT_STRING} multiple
+                  className="sr-only"
                   onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                   <Upload className="w-6 h-6 text-primary" />
                 </div>
                 <p className="font-medium mb-1 text-sm">Trascina file o clicca per caricare</p>
                 <p className="text-xs text-muted-foreground">PDF, EPUB, DOC, TXT</p>
-              </div>
+              </label>
 
               <AnimatePresence>
                 {files.length > 0 && (
