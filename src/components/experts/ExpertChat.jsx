@@ -87,7 +87,7 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
-  const buildContext = async () => {
+  const buildKnowledge = async () => {
     const valid = (sources || []).filter((s) => s.extracted_text || s.extracted_text_uri);
     const fetched = await Promise.all(
       valid.map(async (s) => ({ title: s.title, text: await getSourceText(s) }))
@@ -103,25 +103,7 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
         .join("\n\n");
     }
 
-    const index = (sources || []).map((s, i) => `[${i + 1}] ${s.title}`).join("\n");
-    return `Sei "${expert.name}", un esperto di ${expert.discipline}. ${expert.description || ""}
-${expert.tone_of_voice ? `Tono di voce: ${expert.tone_of_voice}.` : ""}
-${expert.key_skills ? `Competenze chiave: ${expert.key_skills}.` : ""}
-
-DOCUMENTI NELLA KNOWLEDGE BASE:
-${index || "Nessun documento."}
-
-CONTENUTO:
-${knowledge || "Nessun contenuto disponibile."}
-
-ISTRUZIONI:
-- Rispondi SOLO in base alla knowledge base sopra
-- Se l'informazione non è presente, dillo chiaramente
-- Cita sempre il documento sorgente da cui derivi la risposta
-- Sii approfondito e professionale
-- Alla FINE della risposta aggiungi una riga nel formato ESATTO:
-📚 Fonti: <titolo1>, <titolo2>
-- Rispondi nella lingua dell'utente`;
+    return knowledge;
   };
 
   const handleSend = async () => {
@@ -133,16 +115,20 @@ ISTRUZIONI:
     setLoading(true);
     await base44.entities.Message.create({ conversation_id: convId, role: "user", content: text });
 
-    const context = await buildContext();
+    const knowledge = await buildKnowledge();
     const history = [...messages, userMsg]
       .map((m) => `${m.role === "user" ? "Utente" : "Esperto"}: ${m.content}`)
       .join("\n\n");
 
     let response = "";
     try {
-      response = await base44.integrations.Core.InvokeLLM({
-        prompt: `${context}\n\n--- CONVERSAZIONE ---\n${history}`,
+      const res = await base44.functions.invoke("expertAnswer", {
+        expert_id: expert.id,
+        question: text,
+        history,
+        context: knowledge,
       });
+      response = res?.data?.answer || "";
     } catch {
       response = "Spiacente, si è verificato un errore temporaneo. Riprova.";
     }

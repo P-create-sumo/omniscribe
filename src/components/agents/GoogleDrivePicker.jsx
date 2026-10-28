@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-const EXTRACT_LIMIT = 10 * 1024 * 1024; // 10 MB — ExtractDataFromUploadedFile limit
 
 const FILE_ICONS = {
   "application/pdf": <FileText className="w-4 h-4 text-red-400" />,
@@ -77,35 +76,16 @@ export default function GoogleDrivePicker({ agentId, open, onClose, onSourceAdde
 
     let extractedText = "";
     let extractedTextUri = undefined;
-    if (fileType === "audio" || fileType === "video") {
-      extractedText = await base44.integrations.Core.TranscribeAudio({ audio_url: file_url });
-    } else if (fileType === "pdf") {
-      if (size > EXTRACT_LIMIT) {
-        const res = await base44.functions.invoke("extractPdfText", { file_uri });
-        if (res?.data?.error) throw new Error(res.data.error);
-        extractedText = res?.data?.text || "";
-        extractedTextUri = res?.data?.extracted_text_uri;
-      } else {
-        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url,
-          json_schema: {
-            type: "object",
-            properties: { full_text: { type: "string", description: "The complete text content of the document" } }
-          }
-        });
-        if (result?.status === "error") throw new Error(result?.details || "Estrazione fallita");
-        extractedText = result?.output?.full_text || "";
-      }
-    } else if (fileType === "doc") {
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: "object",
-          properties: { full_text: { type: "string", description: "The complete text content of the document" } }
-        }
-      });
-      if (result?.status === "error") throw new Error(result?.details || "Estrazione fallita");
-      extractedText = result?.output?.full_text || "";
+    if (fileType === "pdf") {
+      const res = await base44.functions.invoke("extractPdfText", { file_uri });
+      if (res?.data?.error) throw new Error(res.data.error);
+      extractedText = res?.data?.text || "";
+      extractedTextUri = res?.data?.extracted_text_uri;
+    } else if (fileType === "audio" || fileType === "video" || fileType === "doc") {
+      // Transcription and document extraction run server-side.
+      const res = await base44.functions.invoke("documentIngest", { file_uri, type: fileType });
+      if (res?.data?.error) throw new Error(res.data.error);
+      extractedText = res?.data?.text || "";
     } else {
       const resp = await fetch(file_url);
       extractedText = await resp.text();

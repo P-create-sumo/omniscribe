@@ -84,28 +84,18 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
         setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: "processing" } : item));
 
         let extractedTextUri = undefined;
-        if (fileType === "audio" || fileType === "video") {
-          const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: signed_url });
-          extractedText = transcript;
-        } else if (fileType === "pdf") {
+        if (fileType === "pdf") {
           // Server-side PDF parsing: fast (seconds) and lossless. The LLM-based
           // extractor takes minutes on real documents and times out.
           const res = await base44.functions.invoke("extractPdfText", { file_uri });
           if (res?.data?.error) throw new Error(res.data.error);
           extractedText = res?.data?.text || "";
           extractedTextUri = res?.data?.extracted_text_uri;
-        } else if (fileType === "doc") {
-          const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-            file_url: signed_url,
-            json_schema: {
-              type: "object",
-              properties: {
-                full_text: { type: "string", description: "The complete text content of the document" }
-              }
-            }
-          });
-          if (result?.status === "error") throw new Error(result?.details || "Estrazione fallita");
-          extractedText = result?.output?.full_text || "";
+        } else if (fileType === "audio" || fileType === "video" || fileType === "doc") {
+          // Transcription and document extraction run server-side.
+          const res = await base44.functions.invoke("documentIngest", { file_uri, type: fileType });
+          if (res?.data?.error) throw new Error(res.data.error);
+          extractedText = res?.data?.text || "";
         } else {
           const resp = await fetch(signed_url);
           extractedText = await resp.text();

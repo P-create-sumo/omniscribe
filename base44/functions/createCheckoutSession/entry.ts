@@ -9,8 +9,9 @@ export default async function(req: Request): Promise<Response> {
     const base44 = createClientFromRequest(req);
     const { expert_id, buyer_email } = await req.json();
 
-    if (!expert_id || !buyer_email) {
-      return Response.json({ error: 'expert_id e buyer_email obbligatori' }, { status: 400 });
+    const EMAIL_RE = /^[^@\s]{1,64}@[^@\s.]{1,255}\.[^@\s]{2,24}$/;
+    if (!expert_id || typeof buyer_email !== 'string' || !EMAIL_RE.test(buyer_email.trim())) {
+      return Response.json({ error: 'expert_id e buyer_email validi sono obbligatori' }, { status: 400 });
     }
 
     // Public app — no login required. Use service role to look up the expert.

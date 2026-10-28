@@ -52,18 +52,10 @@ async function extractText(file, fileUri, fileUrl, fileType) {
     }
     return { text, extracted_text_uri: res?.data?.extracted_text_uri };
   }
-  if (fileType === "doc") {
-    const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-      file_url: fileUrl,
-      json_schema: {
-        type: "object",
-        properties: { full_text: { type: "string", description: "The complete text content of the document" } },
-      },
-    });
-    if (result?.status === "error") {
-      throw new Error(result?.details || "Estrazione del testo fallita");
-    }
-    const text = result?.output?.full_text || "";
+  if (fileType === "doc" || fileType === "audio" || fileType === "video") {
+    const res = await base44.functions.invoke("documentIngest", { file_uri: fileUri, type: fileType });
+    if (res?.data?.error) throw new Error(res.data.error);
+    const text = res?.data?.text || "";
     if (!text.trim()) {
       throw new Error("Impossibile estrarre il testo dal file.");
     }

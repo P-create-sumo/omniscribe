@@ -14,6 +14,9 @@ export default async function (req) {
 
     const source = await base44.entities.KnowledgeSource.get(source_id).catch((e) => (e.status === 404 ? null : Promise.reject(e)));
     if (!source) return Response.json({ error: 'Fonte non trovata' }, { status: 404 });
+    if (source.created_by_id !== user.id && user.role !== 'admin') {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
     if (!source.file_url) {
       return Response.json({ error: 'Questa fonte non ha un file da riprocessare' }, { status: 400 });
     }
