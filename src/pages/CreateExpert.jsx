@@ -79,8 +79,13 @@ export default function CreateExpert() {
 
   const hasContent = files.length > 0 || pastedText.trim().length > 0;
 
+  // The selection must be copied right here: the input is reset straight after
+  // the change event, and a FileList is live — reading it later, inside the
+  // state updater, returns nothing and the picked files silently disappear.
   const handleFiles = (fileList) => {
-    setFiles((prev) => [...prev, ...Array.from(fileList)]);
+    const picked = Array.from(fileList || []);
+    if (picked.length === 0) return;
+    setFiles((prev) => [...prev, ...picked]);
   };
 
   const removeFile = (idx) => setFiles((prev) => prev.filter((_, i) => i !== idx));
