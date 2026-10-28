@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 import { extractText, getDocumentProxy } from 'npm:unpdf@1.8.1';
+import { claimFilesForUser } from '../../shared/fileOwnership.ts';
 
 const MAX_ENTITY_FIELD_SIZE = 18000;
 
@@ -25,9 +26,16 @@ export default async function (req) {
       return Response.json({ error: 'Questa fonte non ha un file da riprocessare' }, { status: 400 });
     }
 
+    const file_uri = String(source.file_url || '');
+
+    // The record is owned by the caller, but its file path may point at another
+    // user's upload: refuse a path already bound to someone else.
+    if (FILE_URI_RE.test(file_uri) && !(await claimFilesForUser(base44, user, [file_uri]))) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     await base44.entities.KnowledgeSource.update(source_id, { status: 'processing' });
 
-    const file_uri = String(source.file_url || '');
     if (!FILE_URI_RE.test(file_uri) || file_uri.includes('://')) {
       await base44.entities.KnowledgeSource.update(source_id, { status: 'error' });
       return Response.json({ error: 'File non valido: ricarica il documento originale.' }, { status: 400 });

@@ -4,6 +4,37 @@ import Stripe from 'npm:stripe@17.0.0';
 
 const SUBSCRIPTION_GRACE_DAYS = 35; // ~1 month + buffer
 
+// Purchase recorded for a checkout session. Access is granted only once Stripe
+// confirms the payment: a session can complete while an asynchronous payment
+// method is still settling, so that purchase stays 'pending' until a payment
+// event confirms it.
+function purchaseFields(session: any, paid: boolean) {
+  const { expert_id, buyer_email, seller_id, expert_name } = session.metadata || {};
+  const isSubscription = session.mode === 'subscription';
+  return {
+    expert_id,
+    expert_name: expert_name || '',
+    seller_id: seller_id || '',
+    buyer_email,
+    buyer_user_id: null,
+    type: isSubscription ? 'subscription' : 'one_time',
+    amount: session.amount_total ? session.amount_total / 100 : 0,
+    currency: session.currency || 'eur',
+    status: paid ? (isSubscription ? 'active' : 'paid') : 'pending',
+    stripe_session_id: session.id,
+    stripe_subscription_id: session.subscription || null,
+    stripe_customer_id: session.customer || null,
+    expires_at: paid && isSubscription
+      ? new Date(Date.now() + SUBSCRIPTION_GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString()
+      : null,
+  };
+}
+
+async function findPurchaseBySession(base44, sessionId) {
+  const items = await base44.asServiceRole.entities.Purchase.filter({ stripe_session_id: sessionId });
+  return items && items.length > 0 ? items[0] : null;
+}
+
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -40,35 +71,52 @@ export default async function(req: Request): Promise<Response> {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as any;
-        const { expert_id, buyer_email, seller_id, expert_name } = session.metadata || {};
+        const { expert_id, buyer_email } = session.metadata || {};
         if (!expert_id || !buyer_email) break;
 
         // Idempotency: skip if a Purchase already exists for this session
-        const existing = await base44.asServiceRole.entities.Purchase.filter({
-          stripe_session_id: session.id,
-        });
-        if (existing && existing.length > 0) break;
+        const existing = await findPurchaseBySession(base44, session.id);
+        if (existing) break;
 
-        const isSubscription = session.mode === 'subscription';
-        const amountEur = session.amount_total ? session.amount_total / 100 : 0;
+        // 'completed' does not mean the money settled (delayed payment methods):
+        // only payment_status 'paid' grants access, anything else waits.
+        await base44.asServiceRole.entities.Purchase.create(
+          purchaseFields(session, session.payment_status === 'paid'),
+        );
+        break;
+      }
 
-        await base44.asServiceRole.entities.Purchase.create({
-          expert_id,
-          expert_name: expert_name || '',
-          seller_id: seller_id || '',
-          buyer_email,
-          buyer_user_id: null,
-          type: isSubscription ? 'subscription' : 'one_time',
-          amount: amountEur,
-          currency: session.currency || 'eur',
-          status: isSubscription ? 'active' : 'paid',
-          stripe_session_id: session.id,
-          stripe_subscription_id: session.subscription || null,
-          stripe_customer_id: session.customer || null,
-          expires_at: isSubscription
-            ? new Date(Date.now() + SUBSCRIPTION_GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString()
-            : null,
+      case 'checkout.session.async_payment_succeeded': {
+        const session = event.data.object as any;
+        const { expert_id, buyer_email } = session.metadata || {};
+        if (!expert_id || !buyer_email) break;
+
+        const existing = await findPurchaseBySession(base44, session.id);
+        if (!existing) {
+          await base44.asServiceRole.entities.Purchase.create(purchaseFields(session, true));
+          break;
+        }
+        // Only a still-unsettled purchase is activated here.
+        if (existing.status !== 'pending') break;
+        const fields = purchaseFields(session, true);
+        await base44.asServiceRole.entities.Purchase.update(existing.id, {
+          status: fields.status,
+          expires_at: fields.expires_at,
         });
+        break;
+      }
+
+      case 'checkout.session.async_payment_failed': {
+        const session = event.data.object as any;
+        const existing = await findPurchaseBySession(base44, session.id);
+        // Only a pending purchase is withdrawn: a settled one is never undone
+        // by a late failure event.
+        if (existing && existing.status === 'pending') {
+          await base44.asServiceRole.entities.Purchase.update(existing.id, {
+            status: 'cancelled',
+            expires_at: null,
+          });
+        }
         break;
       }
 

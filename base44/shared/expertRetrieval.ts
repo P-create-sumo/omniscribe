@@ -81,7 +81,7 @@ export function canUseExpertContent(user, expert) {
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-function timingSafeEqual(a, b) {
+export function timingSafeEqual(a, b) {
   const enc = new TextEncoder();
   const ab = enc.encode(String(a));
   const bb = enc.encode(String(b));
@@ -89,6 +89,67 @@ function timingSafeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
   return diff === 0;
+}
+
+// --- Access-code attempt throttling -----------------------------------------
+// Shared by the public gate (publicExpertAccess) and the chat path
+// (expertAnswer), so hitting the cap on one endpoint also counts on the other.
+// Two independent buckets: one per caller, one per expert (which holds even if
+// the caller can rotate identifiers by creating accounts).
+
+const MAX_CALLER_ATTEMPTS = 10;
+const MAX_EXPERT_ATTEMPTS = 30;
+const ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
+
+const codeAttempts = new Map();
+
+function pruneAttempts(now) {
+  if (codeAttempts.size <= 2000) return;
+  for (const [key, entry] of codeAttempts) {
+    if (now - entry.firstAt > ATTEMPT_WINDOW_MS) codeAttempts.delete(key);
+  }
+}
+
+function bumpBucket(key, limit, now) {
+  let entry = codeAttempts.get(key);
+  if (!entry || now - entry.firstAt > ATTEMPT_WINDOW_MS) {
+    entry = { count: 1, firstAt: now };
+    codeAttempts.set(key, entry);
+  } else {
+    entry.count += 1;
+  }
+  return entry.count <= limit;
+}
+
+function bucketExceeded(key, limit, now) {
+  const entry = codeAttempts.get(key);
+  if (!entry || now - entry.firstAt > ATTEMPT_WINDOW_MS) return false;
+  return entry.count >= limit;
+}
+
+function attemptKeys(callerKey, expertId) {
+  const key = String(callerKey || 'unknown');
+  return [
+    [`caller|${key}|${expertId}`, MAX_CALLER_ATTEMPTS],
+    [`expert|${expertId}`, MAX_EXPERT_ATTEMPTS],
+  ];
+}
+
+// Counts one wrong access code. Returns false when the cap is reached.
+export function registerAccessCodeFailure(callerKey, expertId) {
+  const now = Date.now();
+  let allowed = true;
+  for (const [key, limit] of attemptKeys(callerKey, expertId)) {
+    if (!bumpBucket(key, limit, now)) allowed = false;
+  }
+  pruneAttempts(now);
+  return allowed;
+}
+
+// True when this caller (or this expert overall) already exhausted its budget.
+export function isAccessCodeThrottled(callerKey, expertId) {
+  const now = Date.now();
+  return attemptKeys(callerKey, expertId).some(([key, limit]) => bucketExceeded(key, limit, now));
 }
 
 // Who may consume an Expert's AI answers: decided server-side only. Owner,
@@ -99,7 +160,12 @@ export async function canChatWithExpert(base44, user, expert, options = {}) {
   if (!expert.is_public) return false;
 
   const code = typeof options.access_code === 'string' ? options.access_code : '';
-  if (expert.access_code && !timingSafeEqual(code, expert.access_code)) return false;
+  if (expert.access_code && !timingSafeEqual(code, expert.access_code)) {
+    // Every wrong guess is counted for this caller and for the expert, so the
+    // code cannot be brute-forced through the chat path.
+    registerAccessCodeFailure(options.caller_key, expert.id);
+    return false;
+  }
 
   const type = expert.monetization_type || 'free';
   const needsEmail = !!expert.email_gate || type !== 'free';

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
+import { claimFilesForUser } from '../../shared/fileOwnership.ts';
 
 const FILE_URI_RE = /^[A-Za-z0-9][A-Za-z0-9/_.-]{3,300}$/;
 
@@ -19,6 +20,12 @@ export default async function (req) {
     }
     if (!['audio', 'video', 'doc'].includes(type)) {
       return Response.json({ error: 'type non supportato' }, { status: 400 });
+    }
+
+    // The path must belong to this user: a file already bound to someone else
+    // is refused, so this endpoint cannot serve another user's document.
+    if (!(await claimFilesForUser(base44, user, [file_uri]))) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({

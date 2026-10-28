@@ -1,5 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
-import { canChatWithExpert, fetchExpertSources, selectMatches } from '../../shared/expertRetrieval.ts';
+import {
+  canChatWithExpert,
+  canUseExpertContent,
+  fetchExpertSources,
+  isAccessCodeThrottled,
+  selectMatches,
+} from '../../shared/expertRetrieval.ts';
 
 const MAX_CONTEXT_CHARS = 60000;
 const MAX_HISTORY_CHARS = 6000;
@@ -38,12 +44,24 @@ export default async function (req) {
       .catch((e) => (e.status === 404 ? null : Promise.reject(e)));
     if (!expert) return Response.json({ error: 'Esperto non trovato' }, { status: 404 });
 
+    // Wrong access codes are counted per caller, exactly as on the public gate:
+    // a caller who already burned the budget is refused before the code is even
+    // compared, so it cannot be guessed by iterating this endpoint.
+    const callerKey = `user|${user.id}`;
+    if (expert.access_code && !canUseExpertContent(user, expert) && isAccessCodeThrottled(callerKey, expert.id)) {
+      return Response.json(
+        { error: 'Troppi tentativi con il codice di accesso. Riprova tra qualche minuto.' },
+        { status: 429 },
+      );
+    }
+
     // Access is decided server-side, and the knowledge used for the answer always
     // comes from the expert's own sources — never from client-supplied text, so
     // the endpoint cannot be used as a generic LLM proxy on the app's credits.
     const allowed = await canChatWithExpert(base44, user, expert, {
       email: body.email,
       access_code: body.access_code,
+      caller_key: callerKey,
     });
     if (!allowed) return Response.json({ error: 'Forbidden' }, { status: 403 });
 

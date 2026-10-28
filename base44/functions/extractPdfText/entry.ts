@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 import { extractText, getDocumentProxy } from 'npm:unpdf@1.8.1';
+import { claimFilesForUser } from '../../shared/fileOwnership.ts';
 
 const MAX_ENTITY_FIELD_SIZE = 18000; // safe limit below the ~20K entity field cap
 
@@ -18,6 +19,12 @@ export default async function (req) {
 
     if (!FILE_URI_RE.test(file_uri) || file_uri.includes('://')) {
       return Response.json({ error: 'file_uri non valido' }, { status: 400 });
+    }
+
+    // The path must belong to this user: a file already bound to someone else
+    // is refused, so this endpoint cannot serve another user's document.
+    if (!(await claimFilesForUser(base44, user, [file_uri]))) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Storage path -> signed URL generated server-side, so the platform's
@@ -55,6 +62,10 @@ export default async function (req) {
     const blob = new Blob([text], { type: 'text/plain' });
     const file = new File([blob], 'extracted_text.txt', { type: 'text/plain' });
     const { file_uri: extracted_file_uri } = await base44.asServiceRole.integrations.Core.UploadPrivateFile({ file });
+
+    // Bind the generated file to the requester as well, so its path cannot be
+    // read back by another user later.
+    await claimFilesForUser(base44, user, [extracted_file_uri]);
 
     return Response.json({
       text: text.slice(0, MAX_ENTITY_FIELD_SIZE),

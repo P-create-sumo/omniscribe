@@ -1,0 +1,48 @@
+{
+  "name": "FileClaim",
+  "type": "object",
+  "description": "Legame tra un file privato e l'utente che lo ha caricato, per impedire la lettura dei file altrui",
+  "properties": {
+    "file_uri": {
+      "type": "string",
+      "description": "Percorso del file privato"
+    },
+    "owner_id": {
+      "type": "string",
+      "description": "ID dell'utente proprietario del file"
+    }
+  },
+  "required": [
+    "file_uri",
+    "owner_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.owner_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

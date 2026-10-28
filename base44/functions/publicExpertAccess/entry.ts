@@ -1,49 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { registerAccessCodeFailure, timingSafeEqual } from '../../shared/expertRetrieval.ts';
 
-const MAX_ATTEMPTS = 10;
-const MAX_SLUG_ATTEMPTS = 30;
-const WINDOW_MS = 10 * 60 * 1000;
-
-const attempts = new Map();
+// Attempt counting lives in shared/expertRetrieval.ts so the public gate and
+// the chat endpoint spend the same failure budget.
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-function registerFailure(ip, slug) {
-  const now = Date.now();
-  // Two independent buckets: a best-effort per-IP+slug cap and an
-  // unspoofable per-slug global cap that holds even if X-Forwarded-For
-  // is client-controlled.
-  const buckets = [
-    { key: `ip|${ip}|${slug}`, limit: MAX_ATTEMPTS },
-    { key: `slug|${slug}`, limit: MAX_SLUG_ATTEMPTS },
-  ];
-  let allowed = true;
-  for (const b of buckets) {
-    let entry = attempts.get(b.key);
-    if (!entry || now - entry.firstAt > WINDOW_MS) {
-      entry = { count: 1, firstAt: now };
-      attempts.set(b.key, entry);
-    } else {
-      entry.count += 1;
-    }
-    if (entry.count > b.limit) allowed = false;
-  }
-  if (attempts.size > 2000) {
-    for (const [k, v] of attempts) {
-      if (now - v.firstAt > WINDOW_MS) attempts.delete(k);
-    }
-  }
-  return allowed;
-}
-
-function timingSafeEqual(a, b) {
-  const enc = new TextEncoder();
-  const ab = enc.encode(String(a));
-  const bb = enc.encode(String(b));
-  if (ab.length !== bb.length) return false;
-  let diff = 0;
-  for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
-  return diff === 0;
-}
 
 function stripCode(expert) {
   const { access_code, ...rest } = expert;
@@ -79,7 +39,8 @@ Deno.serve(async (req) => {
         codeValid = true;
       } else {
         const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown';
-        if (!registerFailure(ip, slug)) {
+        // Same failure budget as the chat path, keyed on the expert id there too.
+        if (!registerAccessCodeFailure(ip, expert.id)) {
           rateLimited = true;
         } else {
           codeError = true;
