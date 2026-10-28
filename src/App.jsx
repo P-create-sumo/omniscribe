@@ -18,6 +18,9 @@ import CreateExpert from './pages/CreateExpert';
 import ExpertDetail from './pages/ExpertDetail';
 import PublicExpert from './pages/PublicExpert';
 import AcademicSearch from './pages/AcademicSearch';
+import MonetizationHub from './pages/MonetizationHub';
+import IntegrationSettings from './pages/IntegrationSettings';
+import KnowledgeSources from './pages/KnowledgeSources';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings } = useAuth();
@@ -56,6 +59,9 @@ function App() {
                 <Route path="/create" element={<CreateExpert />} />
                 <Route path="/expert/:id" element={<ExpertDetail />} />
                 <Route path="/search" element={<AcademicSearch />} />
+                <Route path="/monetization" element={<MonetizationHub />} />
+                <Route path="/integrations" element={<IntegrationSettings />} />
+                <Route path="/knowledge-sources" element={<KnowledgeSources />} />
               </Route>
             </Route>
           </Route>

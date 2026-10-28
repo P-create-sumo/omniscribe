@@ -1,5 +1,11 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Brain, Plus, Home, LayoutDashboard } from "lucide-react";
+import { Brain, Plus, Home, LayoutDashboard, CircleDollarSign, Plug, Database } from "lucide-react";
+
+const EXTRA_LINKS = [
+  { to: "/monetization", label: "Monetizzazione", icon: CircleDollarSign },
+  { to: "/integrations", label: "Integrazioni", icon: Plug },
+  { to: "/knowledge-sources", label: "Fonti", icon: Database },
+];
 import { Button } from "@/components/ui/button";
 
 export default function AppLayout() {
@@ -36,6 +42,14 @@ export default function AppLayout() {
                   <span className="hidden sm:inline">Dashboard</span>
                 </Button>
               </Link>
+              {EXTRA_LINKS.map((link) => (
+                <Link key={link.to} to={link.to} className="hidden lg:block">
+                  <Button variant={location.pathname === link.to ? "secondary" : "ghost"} size="sm" className="gap-2">
+                    <link.icon className="w-4 h-4" />
+                    <span className="hidden xl:inline">{link.label}</span>
+                  </Button>
+                </Link>
+              ))}
               <Link to="/create">
                 <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0 shadow-lg shadow-primary/25">
                   <Plus className="w-4 h-4" />
