@@ -89,24 +89,12 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
           const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: signed_url });
           extractedText = transcript;
         } else if (fileType === "pdf") {
-          if (file.size > EXTRACT_LIMIT) {
-            const res = await base44.functions.invoke("extractPdfText", { file_uri });
-            if (res?.data?.error) throw new Error(res.data.error);
-            extractedText = res?.data?.text || "";
-            extractedTextUri = res?.data?.extracted_text_uri;
-          } else {
-            const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-              file_url: signed_url,
-              json_schema: {
-                type: "object",
-                properties: {
-                  full_text: { type: "string", description: "The complete text content of the document" }
-                }
-              }
-            });
-            if (result?.status === "error") throw new Error(result?.details || "Estrazione fallita");
-            extractedText = result?.output?.full_text || "";
-          }
+          // Server-side PDF parsing: fast (seconds) and lossless. The LLM-based
+          // extractor takes minutes on real documents and times out.
+          const res = await base44.functions.invoke("extractPdfText", { file_uri });
+          if (res?.data?.error) throw new Error(res.data.error);
+          extractedText = res?.data?.text || "";
+          extractedTextUri = res?.data?.extracted_text_uri;
         } else if (fileType === "doc") {
           const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
             file_url: signed_url,
@@ -201,7 +189,7 @@ export default function KnowledgeUploader({ agentId, onSourceAdded }) {
                 accept={ACCEPT_STRING}
                 multiple
                 className="sr-only"
-                onChange={(e) => handleFiles(e.target.files)}
+                onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
               />
               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Upload className="w-7 h-7 text-primary" />

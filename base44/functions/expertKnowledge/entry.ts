@@ -41,7 +41,7 @@ function chunkText(text) {
 
 async function resolveSourceText(base44, source) {
   let text = source.extracted_text || '';
-  if (text.length > 400 || !source.extracted_text_uri) return text;
+  if (!source.extracted_text_uri) return text;
   try {
     const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({
       file_uri: source.extracted_text_uri,
