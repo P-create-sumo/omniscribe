@@ -32,6 +32,15 @@ Deno.serve(async (req) => {
     let finalText = extracted_text || '';
     let finalTextUri = extracted_text_uri || undefined;
 
+    // Never persist an empty source: a source with no text is invisible to the
+    // Expert but looks correctly loaded in the list. Fail loudly instead.
+    if (!finalText.trim() && !finalTextUri) {
+      return Response.json(
+        { error: 'Estrazione del testo vuota: nessun contenuto indicizzabile (PDF scansito o protetto?).' },
+        { status: 422 },
+      );
+    }
+
     if (finalText.length > MAX_ENTITY_FIELD_SIZE && !finalTextUri) {
       const blob = new Blob([finalText], { type: 'text/plain' });
       const file = new File([blob], 'extracted_text.txt', { type: 'text/plain' });
