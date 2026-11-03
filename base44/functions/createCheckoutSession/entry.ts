@@ -14,6 +14,11 @@ export default async function(req: Request): Promise<Response> {
       return Response.json({ error: 'expert_id e buyer_email validi sono obbligatori' }, { status: 400 });
     }
 
+    // The address is stored normalized so the purchase can be matched against the
+    // buyer's signed-in account later; the account itself is bound when there is one.
+    const normalizedEmail = buyer_email.trim().toLowerCase();
+    const user = await base44.auth.me().catch(() => null);
+
     // Public app — no login required. Use service role to look up the expert.
     const list = await base44.asServiceRole.entities.Expert.filter({ id: expert_id, is_public: true });
     const expert = list && list[0];
@@ -135,10 +140,11 @@ export default async function(req: Request): Promise<Response> {
       'line_items[0][quantity]': '1',
       'success_url': `${appUrl}/e/${expert.slug}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       'cancel_url': `${appUrl}/e/${expert.slug}?payment=cancelled`,
-      'customer_email': buyer_email,
+      'customer_email': normalizedEmail,
       'metadata[base44_app_id]': appId,
       'metadata[expert_id]': expert_id,
-      'metadata[buyer_email]': buyer_email,
+      'metadata[buyer_email]': normalizedEmail,
+      'metadata[base44_user_id]': user?.id || '',
       'metadata[seller_id]': expert.created_by_id || '',
       'metadata[expert_name]': expert.name || '',
     });
@@ -146,7 +152,8 @@ export default async function(req: Request): Promise<Response> {
     if (isSubscription) {
       sessionParams.append('subscription_data[metadata][base44_app_id]', appId);
       sessionParams.append('subscription_data[metadata][expert_id]', expert_id);
-      sessionParams.append('subscription_data[metadata][buyer_email]', buyer_email);
+      sessionParams.append('subscription_data[metadata][base44_user_id]', user?.id || '');
+      sessionParams.append('subscription_data[metadata][buyer_email]', normalizedEmail);
       sessionParams.append('subscription_data[metadata][seller_id]', expert.created_by_id || '');
       sessionParams.append('subscription_data[metadata][expert_name]', expert.name || '');
     }

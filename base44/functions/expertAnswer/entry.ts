@@ -59,7 +59,6 @@ export default async function (req) {
     // comes from the expert's own sources — never from client-supplied text, so
     // the endpoint cannot be used as a generic LLM proxy on the app's credits.
     const allowed = await canChatWithExpert(base44, user, expert, {
-      email: body.email,
       access_code: body.access_code,
       caller_key: callerKey,
     });

@@ -21,6 +21,8 @@ export default function PublicExpert() {
   const [accessGranted, setAccessGranted] = useState(false);
   const [emailRequired, setEmailRequired] = useState(false);
   const [paymentRequired, setPaymentRequired] = useState(false);
+  const [loginRequired, setLoginRequired] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [codeError, setCodeError] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -38,9 +40,16 @@ export default function PublicExpert() {
     setAccessGranted(!!data.accessGranted);
     setEmailRequired(!!data.emailRequired);
     setPaymentRequired(!!data.paymentRequired);
+    setLoginRequired(!!data.loginRequired);
     setCodeError(!!data.codeError);
     setRateLimited(!!data.rateLimited);
   };
+
+  useEffect(() => {
+    // Paid access is bound to the signed-in account, so the page needs to know
+    // who is browsing to show the right prompt.
+    base44.auth.me().then(setCurrentUser).catch(() => setCurrentUser(null));
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -192,7 +201,7 @@ export default function PublicExpert() {
             </p>
           </motion.div>
         ) : needsPaywall ? (
-          <Paywall expert={expert} buyerEmail={visitorEmail} />
+          <Paywall expert={expert} buyerEmail={visitorEmail || currentUser?.email || ""} loginRequired={loginRequired} />
         ) : (
           <div className="h-[calc(100vh-10rem)] border border-border/50 rounded-xl bg-card/50 overflow-hidden">
             <ExpertChat expert={expert} sources={sources} mode="public" visitorEmail={visitorEmail} accessCode={visitorCode} />

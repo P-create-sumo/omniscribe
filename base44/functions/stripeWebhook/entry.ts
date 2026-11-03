@@ -9,14 +9,14 @@ const SUBSCRIPTION_GRACE_DAYS = 35; // ~1 month + buffer
 // method is still settling, so that purchase stays 'pending' until a payment
 // event confirms it.
 function purchaseFields(session: any, paid: boolean) {
-  const { expert_id, buyer_email, seller_id, expert_name } = session.metadata || {};
+  const { expert_id, buyer_email, seller_id, expert_name, base44_user_id } = session.metadata || {};
   const isSubscription = session.mode === 'subscription';
   return {
     expert_id,
     expert_name: expert_name || '',
     seller_id: seller_id || '',
-    buyer_email,
-    buyer_user_id: null,
+    buyer_email: String(buyer_email || '').trim().toLowerCase(),
+    buyer_user_id: base44_user_id || null,
     type: isSubscription ? 'subscription' : 'one_time',
     amount: session.amount_total ? session.amount_total / 100 : 0,
     currency: session.currency || 'eur',

@@ -88,7 +88,6 @@ export default function ExpertChat({ expert, sources = [], mode = "owner", visit
         expert_id: expert.id,
         question: text,
         history,
-        email: visitorEmail || undefined,
         access_code: accessCode || undefined,
       });
       response = res?.data?.answer || "";

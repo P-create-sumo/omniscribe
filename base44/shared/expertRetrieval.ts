@@ -152,9 +152,30 @@ export function isAccessCodeThrottled(callerKey, expertId) {
   return attemptKeys(callerKey, expertId).some(([key, limit]) => bucketExceeded(key, limit, now));
 }
 
+// Paid access is bound to the signed-in account, never to an email the caller
+// types: matching a client-supplied address let anyone who knew a buyer's email
+// unlock the paid chat without owning that inbox.
+export async function hasPaidAccessToExpert(base44, expert, user) {
+  if (!user || !user.id) return false;
+  const type = expert.monetization_type || 'free';
+  if (type === 'free') return true;
+
+  const verifiedEmail = String(user.email || '').trim().toLowerCase();
+  const { items } = await base44.asServiceRole.entities.Purchase.filter({ expert_id: expert.id });
+  const now = new Date();
+  return (items || []).some((p) => {
+    const mine =
+      (p.buyer_user_id && p.buyer_user_id === user.id) ||
+      (!!verifiedEmail && String(p.buyer_email || '').trim().toLowerCase() === verifiedEmail);
+    if (!mine) return false;
+    if (type === 'one_time') return p.status === 'paid';
+    return p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > now);
+  });
+}
+
 // Who may consume an Expert's AI answers: decided server-side only. Owner,
 // admin and public free experts; for gated or paid public experts the visitor's
-// code must match and a paid expert needs a verified purchase for that email.
+// code must match and a paid expert needs a purchase owned by the session user.
 export async function canChatWithExpert(base44, user, expert, options = {}) {
   if (canUseExpertContent(user, expert)) return true;
   if (!expert.is_public) return false;
@@ -171,19 +192,15 @@ export async function canChatWithExpert(base44, user, expert, options = {}) {
   const needsEmail = !!expert.email_gate || type !== 'free';
   if (!needsEmail) return true;
 
-  const email = typeof options.email === 'string' ? options.email.trim() : '';
-  if (!EMAIL_RE.test(email)) return false;
-  if (type === 'free') return true;
+  // Paid experts unlock only through the signed-in buyer: the email is read from
+  // the session, never from the request body.
+  if (type !== 'free') return hasPaidAccessToExpert(base44, expert, user);
 
-  const { items } = await base44.asServiceRole.entities.Purchase.filter({
-    expert_id: expert.id,
-    buyer_email: email,
-  });
-  const now = new Date();
-  return (items || []).some((p) => {
-    if (type === 'one_time') return p.status === 'paid';
-    return p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > now);
-  });
+  // Free experts with a lead gate: the address is only captured as a contact and
+  // grants nothing paid, so a session or any well-formed email is enough.
+  if (user?.email) return true;
+  const email = typeof options.email === 'string' ? options.email.trim() : '';
+  return EMAIL_RE.test(email);
 }
 
 export async function selectMatches(base44, sources, question) {

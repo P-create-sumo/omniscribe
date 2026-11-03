@@ -1,5 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { registerAccessCodeFailure, timingSafeEqual } from '../../shared/expertRetrieval.ts';
+import {
+  hasPaidAccessToExpert,
+  registerAccessCodeFailure,
+  timingSafeEqual,
+} from '../../shared/expertRetrieval.ts';
 
 // Attempt counting lives in shared/expertRetrieval.ts so the public gate and
 // the chat endpoint spend the same failure budget.
@@ -29,6 +33,7 @@ Deno.serve(async (req) => {
     let emailRequired = false;
     let accessGranted = false;
     let paymentRequired = false;
+    let loginRequired = false;
     const monetizationType = expert.monetization_type || 'free';
 
     if (accessRequired) {
@@ -51,32 +56,20 @@ Deno.serve(async (req) => {
     }
 
     if (codeValid && !rateLimited) {
-      const needsEmail = emailGate || monetizationType !== 'free';
-      if (needsEmail) {
+      if (monetizationType !== 'free') {
+        // Paid access is decided from the signed-in account that bought the
+        // expert; an email typed into the page proves nothing.
+        const user = await base44.auth.me().catch((e) => (e.status === 401 ? null : Promise.reject(e)));
+        if (await hasPaidAccessToExpert(base44, expert, user)) {
+          accessGranted = true;
+        } else {
+          paymentRequired = true;
+          loginRequired = !user;
+        }
+      } else if (emailGate) {
         const submittedEmail = typeof email === 'string' ? email.trim() : '';
         if (EMAIL_RE.test(submittedEmail)) {
-          if (monetizationType !== 'free') {
-            // Check for a valid purchase
-            const purchases = await base44.asServiceRole.entities.Purchase.filter({
-              expert_id: expert.id,
-              buyer_email: submittedEmail,
-            });
-            const now = new Date();
-            const hasValidPurchase = (purchases || []).some((p) => {
-              if (monetizationType === 'one_time') return p.status === 'paid';
-              if (monetizationType === 'subscription') {
-                return p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > now);
-              }
-              return false;
-            });
-            if (hasValidPurchase) {
-              accessGranted = true;
-            } else {
-              paymentRequired = true;
-            }
-          } else {
-            accessGranted = true;
-          }
+          accessGranted = true;
         } else {
           emailRequired = true;
         }
@@ -113,6 +106,7 @@ Deno.serve(async (req) => {
       emailRequired,
       rateLimited,
       paymentRequired,
+      loginRequired,
       monetizationType,
       price: expert.price || 0,
       sources,

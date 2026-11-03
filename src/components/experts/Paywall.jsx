@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Lock, Sparkles, ArrowRight, RefreshCw, CircleDollarSign, CheckCircle2 } from "lucide-react";
+import { Loader2, Lock, Sparkles, ArrowRight, RefreshCw, CircleDollarSign, CheckCircle2, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function Paywall({ expert, buyerEmail, onPurchased }) {
+export default function Paywall({ expert, buyerEmail, loginRequired }) {
   const [email, setEmail] = useState(buyerEmail || "");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
@@ -89,6 +89,24 @@ export default function Paywall({ expert, buyerEmail, onPurchased }) {
         </div>
       </div>
 
+      {loginRequired && (
+        <div className="mb-4 p-4 rounded-xl border border-border/60 bg-muted/30 space-y-2">
+          <p className="text-sm font-medium">Hai già acquistato?</p>
+          <p className="text-xs text-muted-foreground">
+            Accedi con l'email usata per il pagamento: l'accesso è legato al tuo account.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => base44.auth.redirectToLogin(window.location.href)}
+          >
+            <LogIn className="w-4 h-4" /> Accedi
+          </Button>
+        </div>
+      )}
+
       {/* Email + purchase form */}
       <form onSubmit={handlePurchase} className="space-y-3">
         <Input
@@ -114,7 +132,7 @@ export default function Paywall({ expert, buyerEmail, onPurchased }) {
       </form>
 
       <p className="text-[11px] text-muted-foreground text-center mt-4">
-        Pagamento sicuro tramite Stripe. La tua email viene usata per attivare l'accesso.
+        Pagamento sicuro tramite Stripe. Dopo il pagamento accedi con questa email per usare l'Esperto.
       </p>
     </motion.div>
   );
