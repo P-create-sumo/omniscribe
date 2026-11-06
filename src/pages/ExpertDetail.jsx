@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MessageSquare, BookOpen, Settings, ArrowLeft, Trash2, Pencil, Loader2,
-  Copy, Check, Globe, Lock, ExternalLink, MessageCircle, Send,
+  Copy, Check, Globe, Lock, ExternalLink, MessageCircle, Send, Sparkles,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -21,6 +21,7 @@ import KnowledgeUploader from "../components/agents/KnowledgeUploader";
 import SourcesList from "../components/agents/SourcesList";
 import ExpertChat from "../components/experts/ExpertChat";
 import MonetizationSettings from "../components/experts/MonetizationSettings";
+import StudioPanel from "../components/studio/StudioPanel";
 import { motion } from "framer-motion";
 
 export default function ExpertDetail() {
@@ -166,6 +167,7 @@ export default function ExpertDetail() {
             <BookOpen className="w-4 h-4" /> Knowledge Base
             <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{sources.length}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="studio" className="rounded-lg gap-2 data-[state=active]:shadow-sm"><Sparkles className="w-4 h-4" /> Studio</TabsTrigger>
           <TabsTrigger value="settings" className="rounded-lg gap-2 data-[state=active]:shadow-sm"><Settings className="w-4 h-4" /> <span className="hidden sm:inline">Condivisione</span></TabsTrigger>
         </TabsList>
 
@@ -179,6 +181,10 @@ export default function ExpertDetail() {
             <h3 className="font-semibold mb-4 flex items-center gap-2"><BookOpen className="w-4 h-4 text-primary" /> Fonti caricate ({sources.length})</h3>
             <SourcesList sources={sources} onDelete={refresh} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="studio" className="mt-4 overflow-y-auto">
+          <StudioPanel expert={expert} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-4 overflow-y-auto">

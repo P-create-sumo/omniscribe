@@ -1,0 +1,118 @@
+{
+  "name": "StudyMaterial",
+  "type": "object",
+  "description": "Materiale didattico generato dall'Esperto (quiz, flashcard, slide, mappa mentale, audio, infografica)",
+  "properties": {
+    "expert_id": {
+      "type": "string",
+      "description": "ID dell'Esperto che ha generato il materiale"
+    },
+    "expert_name": {
+      "type": "string",
+      "description": "Nome dell'Esperto (denormalizzato)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "quiz_mc",
+        "quiz_open",
+        "flashcards",
+        "slides",
+        "mindmap",
+        "audio",
+        "podcast",
+        "infographic"
+      ],
+      "enumColors": [
+        "blue",
+        "purple",
+        "green",
+        "yellow",
+        "pink",
+        "gray",
+        "gray",
+        "blue"
+      ],
+      "description": "Formato del materiale"
+    },
+    "topic": {
+      "type": "string",
+      "description": "Capitolo o argomento richiesto"
+    },
+    "title": {
+      "type": "string",
+      "description": "Titolo del materiale"
+    },
+    "content": {
+      "type": "string",
+      "description": "Contenuto strutturato in JSON"
+    },
+    "audio_url": {
+      "type": "string",
+      "description": "URL del file audio (solo sintesi audio e podcast)"
+    },
+    "sources_used": {
+      "type": "string",
+      "description": "Fonti della knowledge base usate per generare il materiale"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "error"
+      ],
+      "enumColors": [
+        "green",
+        "red"
+      ],
+      "default": "ready",
+      "description": "Stato del materiale"
+    }
+  },
+  "required": [
+    "expert_id",
+    "type",
+    "topic"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
